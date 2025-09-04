@@ -1,4 +1,9 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/model/request/register_req.dart';
+import 'package:mobile_lotto/model/response/register_res_post.dart';
 
 class Register_Page extends StatefulWidget {
   Register_Page({super.key});
@@ -8,11 +13,49 @@ class Register_Page extends StatefulWidget {
 }
 
 class _Register_PageState extends State<Register_Page> {
+  // ✅ Controllers
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController bankController = TextEditingController();
+  final TextEditingController accountController = TextEditingController();
+
+  // ✅ ฟังก์ชันกดปุ่มสมัครสมาชิก
+  String getValue(TextEditingController c) => c.text.trim();
+
+  void registerUser() {
+    RegisterRequest req = RegisterRequest(
+      fullName: nameController.toString(),
+      phone: phoneController.toString(),
+      email: emailController.toString(),
+      bankName: bankController.toString(),
+      bankNumber: accountController.toString(),
+      password: passwordController.toString(),
+    );
+    http
+        .post(
+          Uri.parse("https://lotto-api-5jq7.onrender.com/api/Auth/register"),
+          headers: {"Content-Type": "application/json; charset=utf-8"},
+          body: registerRequestToJson(req),
+        )
+        .then((value) {
+          log(value.body);
+          RegisterRespone registerRespone = registerResponeFromJson(value.body);
+          log(registerRespone.fullName);
+          // log(customerLoginPostResponse.customer.fullname);
+          // log(customerLoginPostResponse.customer.email);
+        })
+        .catchError((error) {
+          log('Error $error');
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        height: MediaQuery.of(context).size.height, // ครอบเต็มหน้าจอ
+        height: MediaQuery.of(context).size.height,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -26,7 +69,7 @@ class _Register_PageState extends State<Register_Page> {
             children: [
               const SizedBox(height: 50),
 
-              // 🔹 รูปซ้อนกัน
+              // 🔹 Logo
               Center(
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -55,7 +98,8 @@ class _Register_PageState extends State<Register_Page> {
               ),
 
               const SizedBox(height: 20),
-              // 🔹 การ์ดฟอร์ม
+
+              // 🔹 Card Form
               Container(
                 margin: const EdgeInsets.all(20),
                 padding: const EdgeInsets.all(20),
@@ -68,7 +112,6 @@ class _Register_PageState extends State<Register_Page> {
                   ),
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
                       "สมัครสมาชิก",
@@ -80,140 +123,38 @@ class _Register_PageState extends State<Register_Page> {
                     ),
                     const SizedBox(height: 10),
 
-                    // ชื่อนามสกุล
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          hintText: "ชื่อนามสกุล",
-                          hintStyle: const TextStyle(color: Colors.white70),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                          ), // ไอคอน
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 0, 162, 177),
-                              width: 1.5,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                    // 🔹 Input Fields
+                    buildTextField("ชื่อนามสกุล", Icons.person, nameController),
+                    buildTextField(
+                      "เบอร์โทรศัพท์",
+                      Icons.phone,
+                      phoneController,
                     ),
-
-                    // เบอร์โทรศัพท์
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          hintText: "เบอร์โทรศัพท์",
-                          hintStyle: const TextStyle(color: Colors.white70),
-                          prefixIcon: const Icon(
-                            Icons.phone,
-                            color: Colors.white,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 0, 162, 177),
-                              width: 1.5,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                    buildTextField("อีเมล์", Icons.email, emailController),
+                    buildTextField(
+                      "รหัสผ่าน",
+                      Icons.lock,
+                      passwordController,
+                      isPassword: true,
                     ),
-
-                    // อีเมล์
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          hintText: "อีเมล์",
-                          hintStyle: const TextStyle(color: Colors.white70),
-                          prefixIcon: const Icon(
-                            Icons.email,
-                            color: Colors.white,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 0, 162, 177),
-                              width: 1.5,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                    buildTextField(
+                      "ชื่อธนาคาร",
+                      Icons.account_balance,
+                      bankController,
                     ),
-
-                    // รหัสผ่าน
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          hintText: "รหัสผ่าน",
-                          hintStyle: const TextStyle(color: Colors.white70),
-                          prefixIcon: const Icon(
-                            Icons.lock,
-                            color: Colors.white,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 0, 162, 177),
-                              width: 1.5,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                    buildTextField(
+                      "เลขบัญชี",
+                      Icons.account_balance_wallet,
+                      accountController,
                     ),
 
                     const SizedBox(height: 20),
-                    // ปุ่มสมัครสมาชิก
+
+                    // 🔹 สมัครสมาชิก
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: registerUser, // ✅ กดแล้วดึงค่ามาใช้
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(
                             255,
@@ -225,14 +166,8 @@ class _Register_PageState extends State<Register_Page> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: const BorderSide(
-                              // เพิ่มตรงนี้
-                              color: Color.fromARGB(
-                                255,
-                                0,
-                                196,
-                                186,
-                              ), // สีขอบเหมือนปุ่ม
-                              width: 2, // ความหนาของขอบ
+                              color: Color.fromARGB(255, 0, 196, 186),
+                              width: 2,
                             ),
                           ),
                         ),
@@ -248,11 +183,14 @@ class _Register_PageState extends State<Register_Page> {
                     ),
 
                     const SizedBox(height: 20),
-                    // ปุ่มย้อนกลับโปร่งใส
+
+                    // 🔹 ย้อนกลับ
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.pop(context); // ✅ กลับหน้าเดิม
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           padding: const EdgeInsets.symmetric(vertical: 15),
@@ -281,6 +219,41 @@ class _Register_PageState extends State<Register_Page> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ✅ Reusable TextField Widget
+  Widget buildTextField(
+    String hint,
+    IconData icon,
+    TextEditingController controller, {
+    bool isPassword = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.transparent,
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white70),
+          prefixIcon: Icon(icon, color: Colors.white),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(
+              color: Color.fromARGB(255, 0, 162, 177),
+              width: 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
+          ),
+        ),
+        style: const TextStyle(color: Colors.white),
       ),
     );
   }

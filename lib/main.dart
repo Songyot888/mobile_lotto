@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
           seedColor: const Color.fromARGB(255, 77, 1, 255),
         ),
       ),
-      home: Login_Page(),
+      home: Register_Page(),
     );
   }
 }
