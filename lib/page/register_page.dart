@@ -46,7 +46,7 @@ class _Register_PageState extends State<Register_Page> {
 
               const SizedBox(height: 10),
               const Text(
-                "จ่ายหนัก จ่ายจริง ไม่จำ",
+                "จ่ายหนัก จ่ายจริง ไม่จำกัด",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
