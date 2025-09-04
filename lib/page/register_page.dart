@@ -26,12 +26,12 @@ class _Register_PageState extends State<Register_Page> {
 
   void registerUser() {
     RegisterRequest req = RegisterRequest(
-      fullName: nameController.toString(),
-      phone: phoneController.toString(),
-      email: emailController.toString(),
-      bankName: bankController.toString(),
-      bankNumber: accountController.toString(),
-      password: passwordController.toString(),
+      fullName: nameController.text,
+      phone: phoneController.text,
+      email: emailController.text,
+      bankName: bankController.text,
+      bankNumber: accountController.text,
+      password: passwordController.text,
     );
     http
         .post(
@@ -223,7 +223,6 @@ class _Register_PageState extends State<Register_Page> {
     );
   }
 
-  // ✅ Reusable TextField Widget
   Widget buildTextField(
     String hint,
     IconData icon,
