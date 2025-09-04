@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/page/login_page.dart';
+import 'package:mobile_lotto/page/menu_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
+import 'package:mobile_lotto/page/register_page.dart';
+import 'package:mobile_lotto/page/wallet_page.dart';
+
 
 void main() {
   runApp(const MyApp());
