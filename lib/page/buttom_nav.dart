@@ -22,15 +22,15 @@ class BottomNav extends StatelessWidget {
 
   void _defaultOnTap(BuildContext context, int index) {
     if (index == currentIndex) return;
-
     final args = (argumentsPerIndex != null && argumentsPerIndex!.length == 4)
         ? argumentsPerIndex![index]
         : null;
 
-    Navigator.pushReplacementNamed(
+    Navigator.pushNamed(
+      // 👈 เปลี่ยนเป็น pushNamed
       context,
       routeNames[index],
-      arguments: args, // ✅ ส่ง arguments ถ้ามี
+      arguments: args,
     );
   }
 

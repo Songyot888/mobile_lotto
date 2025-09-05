@@ -5,7 +5,8 @@ import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final User? user;
+  const ProfilePage({super.key, this.user});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -30,13 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/home',
-              (route) => false,
-            );
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "ข้อมูลสมาชิก",
@@ -162,8 +157,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // ===== Bottom Navigation =====
       bottomNavigationBar: BottomNav(
-        currentIndex: 1,
+        currentIndex: 3,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
+        argumentsPerIndex: [user, null, user, user],
       ),
     );
   }

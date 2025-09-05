@@ -117,7 +117,7 @@ class _Menu_pageState extends State<Menu_page> {
       bottomNavigationBar: BottomNav(
         currentIndex: 0,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
-        argumentsPerIndex: [null, null, null, widget.user],
+        argumentsPerIndex: [widget.user, null, widget.user, widget.user],
       ),
     );
   }
@@ -134,6 +134,8 @@ class _Menu_pageState extends State<Menu_page> {
             context,
             MaterialPageRoute(builder: (context) => const Wallet_Page()),
           );
+        } else {
+          onTap(); // ✅ เรียก callback ที่ส่งเข้ามา
         }
       },
 
