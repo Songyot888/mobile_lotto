@@ -8,7 +8,7 @@ class Login_Page extends StatefulWidget {
 }
 
 class _Login_PageState extends State<Login_Page> {
-  Color maroon = const Color(0xFF4A0E0E);
+  Color maroon = const Color(0xFF017E89);
   Color maroonDark = const Color(0xFF2E0707);
   Color gold = const Color(0xFFD3A400);
   TextEditingController emailCtrl = TextEditingController();
@@ -20,7 +20,6 @@ class _Login_PageState extends State<Login_Page> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          
           Stack(
             children: [
               Container(
@@ -28,48 +27,41 @@ class _Login_PageState extends State<Login_Page> {
                 height: 250,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFD32F2F), Color.fromARGB(255, 0, 0, 0)],
+                    colors: [Color(0xFF017E89)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                 ),
               ),
               Positioned(
-                top: 20,
+                top: 50,
                 child: Image.asset('assets/lotto-1-removebg-preview 1.png'),
               ),
-              Center(child: Image.asset('assets/lotto888.png')),
-
               Positioned(
-                left: 110,
-                top: 160,
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: maroonDark,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: gold, width: 1.5),
-                      ),
-                    ),
-                    child: const Text(
-                      'สมัครสมาชิก',
-                      style: TextStyle(fontSize: 24),
-                    ),
-                  ),
-                ),
+                top: 60,
+                child: Center(child: Image.asset('assets/lotto888.png')),
               ),
             ],
+          ),
+          SizedBox(
+            child: Text(
+              "จ่ายหนัก จ่ายจริง ไม่จำกัด",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           SizedBox(height: 40),
           Container(
             width: 350,
             height: 400,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.amber, width: 2), // เส้นขอบ
+              border: Border.all(
+                color: const Color.fromARGB(255, 185, 182, 173),
+                width: 2,
+              ), // เส้นขอบ
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -77,58 +69,32 @@ class _Login_PageState extends State<Login_Page> {
                   color: Colors.black.withOpacity(0),
                 ),
               ],
-              image: DecorationImage(
-                image: AssetImage('assets/sa-removebg-preview 1.png'),
-              ),
             ),
+
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.only(left: 20, right: 16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SizedBox(height: 30),
-                      Row(
-                        children: [
-                          Text(
-                            'ยินดีต้อนรับสู่ LOTTO888',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 10),
-                      SizedBox(
-                        width: 220,
-                        height: 50,
+                      Center(
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 0),
-                                child: Text(
-                                  'แอปขายหวยออนไลน์ อันดับ 1 จ่ายหนัก จ่ายจริง ไม่จำกัด ',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.amber,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  softWrap: true,
-                                  textAlign: TextAlign.start,
-                                ),
+                            Text(
+                              'ยินดีต้อนรับสู่ LOTTO888',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      SizedBox(height: 10),
+
                       SizedBox(
                         width: 300,
                         child: Padding(
@@ -149,14 +115,13 @@ class _Login_PageState extends State<Login_Page> {
                                 color: Colors.white.withOpacity(0.7),
                               ),
                               filled: true,
-                              fillColor: const Color(
-                                0xFF4A0E0E,
-                              ), // พื้นหลังช่อง
+                              fillColor: Colors.transparent,
+                              // พื้นหลังช่อง
                               // เส้นขอบขณะ "ปกติ"
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFD3A400),
+                                  color: Color.fromARGB(255, 172, 169, 158),
                                   width: 2,
                                 ),
                               ),
@@ -164,7 +129,7 @@ class _Login_PageState extends State<Login_Page> {
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFD3A400),
+                                  color: Color.fromARGB(255, 132, 129, 120),
                                   width: 2.4,
                                 ),
                               ),
@@ -202,14 +167,12 @@ class _Login_PageState extends State<Login_Page> {
                                 color: Colors.white.withOpacity(0.7),
                               ),
                               filled: true,
-                              fillColor: const Color(
-                                0xFF4A0E0E,
-                              ), // พื้นหลังช่อง
+                              fillColor: Colors.transparent, // พื้นหลังช่อง
                               // เส้นขอบขณะ "ปกติ"
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFD3A400),
+                                  color: Color.fromARGB(255, 175, 172, 161),
                                   width: 2,
                                 ),
                               ),
@@ -217,7 +180,7 @@ class _Login_PageState extends State<Login_Page> {
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFD3A400),
+                                  color: Color.fromARGB(255, 130, 126, 113),
                                   width: 2.4,
                                 ),
                               ),
@@ -235,37 +198,82 @@ class _Login_PageState extends State<Login_Page> {
                           ),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 15),
-                        child: TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            'ลืมรหัสผ่าน ?',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.amberAccent,
+                      SizedBox(height: 40),
+                      SizedBox(
+                        width: 300,
+                        height: 50,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF00838F), // สีเริ่ม (เขียวฟ้าเข้ม)
+                                Color(0xFF4DD0E1), // สีปลาย (เขียวฟ้าอ่อน)
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Colors.transparent, // ทำให้โปร่งใส
+                              shadowColor: Colors
+                                  .transparent, // ไม่ให้เงาซ้อนกับ gradient
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                            ),
+                            child: const Text(
+                              'เข้าสู่ระบบ',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white, // ตัวหนังสือสีขาว
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      SizedBox(
-                        width: 300,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: gold, width: 1.5),
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'สมัครสมาชิก ',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          child: const Text(
-                            'เข้าสู่ระบบ',
-                            style: TextStyle(fontSize: 24),
+                          SizedBox(width: 80),
+                          GestureDetector(
+                            onTap: () {
+                              // Navigator.push(
+                              //   context,
+                              //   MaterialPageRoute(
+                              //       builder: (context) => Register_Page()),
+                              // );
+                            },
+                            child: Text(
+                              'ลืมรหัสผ่าน?',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
