@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:mobile_lotto/page/load_page.dart';
-=======
 import 'package:mobile_lotto/page/history_page.dart';
 import 'package:mobile_lotto/page/login_page.dart';
 import 'package:mobile_lotto/page/menu_page.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
->>>>>>> e1a76a17b05b131405ae1a730618a2297ec2662a
 
 void main() {
   runApp(const MyApp());
