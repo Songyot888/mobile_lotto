@@ -16,12 +16,12 @@ class _Load_PageState extends State<Load_Page> {
   @override
   void initState() {
     super.initState();
-    // Timer(const Duration(seconds: 3), () {
-    //   Navigator.pushReplacement(
-    //     context,
-    //     MaterialPageRoute(builder: (context) => const Login_Page()),
-    //   );
-    // });
+    Timer(const Duration(seconds: 3), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Login_Page()),
+      );
+    });
   }
 
   @override
@@ -45,7 +45,6 @@ class _Load_PageState extends State<Load_Page> {
             ),
           ),
 
-          // ข้อความกำลังโหลด... ด้านล่าง
           const Align(
             alignment: Alignment(0, 0.85),
             child: Text(

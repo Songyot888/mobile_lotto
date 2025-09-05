@@ -20,24 +20,23 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4D01FF)),
       ),
 
-      // 👇 เลือกหน้าเริ่มต้น
-      // initialRoute: '/login',
-      initialRoute: '/login',
+      initialRoute: '/load',
 
       routes: {
-        '/login': (context) => const Login_Page(),
+        '/load': (context) => const Load_Page(),
+        'login': (context) => const Login_Page(),
         '/home': (context) => const Menu_page(),
-        '/my-tickets': (context) => const Placeholder(), // TODO: ใส่หน้าจริง
+        '/my-tickets': (context) => const Placeholder(),
         '/wallet': (context) => const Wallet_Page(),
-        '/member': (context) => const Placeholder(), // TODO: ใส่หน้าจริง
-        '/topup': (context) => const Placeholder(), // TODO
-        '/withdraw': (context) => const Placeholder(), // TODO
-        '/purchase-history': (context) => const HistoryPage(), // TODO
-        '/winning-history': (context) => const Placeholder(), // TODO
-        '/buy': (context) => const Placeholder(), // TODO
-        '/check-lottery': (context) => const Placeholder(), // TODO
-        '/previous-results': (context) => const Placeholder(), // TODO
-      },
+        '/member': (context) => const Placeholder(),
+        '/topup': (context) => const Placeholder(),
+        '/withdraw': (context) => const Placeholder(),
+        '/purchase-history': (context) => const HistoryPage(),
+        '/winning-history': (context) => const Placeholder(),
+        '/buy': (context) => const Placeholder(),
+        '/check-lottery': (context) => const Placeholder(),
+        '/previous-results': (context) => const Placeholder(),
+      }
     );
   }
 }
