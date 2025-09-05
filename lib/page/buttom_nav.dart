@@ -12,7 +12,7 @@ class BottomNav extends StatelessWidget {
   }) : assert(routeNames.length == 4, 'routeNames ต้องมี 4 รายการ');
 
   void _onTap(BuildContext context, int index) {
-    if (index == currentIndex) return; // อยู่หน้าเดิม ไม่ต้องนำทาง
+    if (index == currentIndex) return;
     Navigator.pushReplacementNamed(context, routeNames[index]);
   }
 

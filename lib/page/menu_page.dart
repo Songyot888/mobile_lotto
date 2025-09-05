@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_lotto/page/bottom_nav.dart';
+import 'package:mobile_lotto/page/buttom_nav.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 
