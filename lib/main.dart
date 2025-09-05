@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
 
       routes: {
         '/load': (context) => const Load_Page(),
-        'login': (context) => const Login_Page(),
+        '/login': (context) => const Login_Page(),
         '/home': (context) => const Menu_page(),
         '/my-tickets': (context) => const Placeholder(),
         '/wallet': (context) => const Wallet_Page(),
@@ -36,8 +36,7 @@ class MyApp extends StatelessWidget {
         '/buy': (context) => const Placeholder(),
         '/check-lottery': (context) => const Placeholder(),
         '/previous-results': (context) => const Placeholder(),
-      }
-
+      },
     );
   }
 }
