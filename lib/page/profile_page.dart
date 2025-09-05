@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -13,6 +16,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)!.settings.arguments;
+    final user = args as User?;
+
+    debugPrint("User object: $user");
+    debugPrint("User fullName: ${user?.fullName}");
+    debugPrint("User email: ${user?.email}");
+
     return Scaffold(
       // ===== AppBar =====
       appBar: AppBar(
@@ -98,8 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.person_outline,
                   label: "ข้อมูลส่วนตัว",
                   onTap: () {
-                    // TODO: นำทางไปหน้าข้อมูลส่วนตัว
-                    // Navigator.push(context, MaterialPageRoute(builder: (_) => const PersonalInfoPage()));
+                    Navigator.pushNamed(context, '/personal', arguments: user);
                   },
                 ),
                 const SizedBox(height: 10),

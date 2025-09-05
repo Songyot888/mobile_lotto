@@ -36,7 +36,7 @@ class _Login_PageState extends State<Login_Page> {
       );
 
       final res = await http.post(
-        Uri.parse("https://lotto-api-5jq7.onrender.com/api/Auth/login"),
+        Uri.parse("https://lotto-api-production.up.railway.app/api/Auth/login"),
         headers: {"Content-Type": "application/json; charset=utf-8"},
         body: loginRequestToJson(req),
       );

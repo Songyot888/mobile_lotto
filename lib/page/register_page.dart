@@ -35,7 +35,9 @@ class _Register_PageState extends State<Register_Page> {
     );
     http
         .post(
-          Uri.parse("https://lotto-api-5jq7.onrender.com/api/Auth/register"),
+          Uri.parse(
+            "https://lotto-api-production.up.railway.app/api/Auth/register",
+          ),
           headers: {"Content-Type": "application/json; charset=utf-8"},
           body: registerRequestToJson(req),
         )
