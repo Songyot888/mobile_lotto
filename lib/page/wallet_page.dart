@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/page/bottom_nav.dart';
 
+
 class Wallet_Page extends StatefulWidget {
   const Wallet_Page({super.key});
 

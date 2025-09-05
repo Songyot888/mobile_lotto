@@ -37,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/check-lottery': (context) => const Placeholder(),
         '/previous-results': (context) => const Placeholder(),
       }
+
     );
   }
 }
