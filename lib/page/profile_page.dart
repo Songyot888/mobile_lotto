@@ -1,28 +1,54 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
+import 'package:mobile_lotto/page/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  final User? user;
-  const ProfilePage({super.key, this.user});
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  int _currentIndex = 3; // อยู่แท็บสมาชิก
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _initUser();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> _initUser() async {
+    final u = await Session.getUser();
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments;
-    final user = args as User?;
-
-    debugPrint("User object: $user");
-    debugPrint("User fullName: ${user?.fullName}");
-    debugPrint("User email: ${user?.email}");
+    debugPrint("User object: $_user");
+    debugPrint("User fullName: ${_user?.fullName}");
+    debugPrint("User email: ${_user?.email}");
 
     return Scaffold(
       // ===== AppBar =====
@@ -103,7 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.person_outline,
                   label: "ข้อมูลส่วนตัว",
                   onTap: () {
-                    Navigator.pushNamed(context, '/personal', arguments: user);
+                    Navigator.pushNamed(context, '/personal', arguments: _user);
                   },
                 ),
                 const SizedBox(height: 10),
@@ -131,13 +157,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      // TODO: ทำกระบวนการ logout
-                      // Navigator.pushAndRemoveUntil(
-                      //   context,
-                      //   MaterialPageRoute(builder: (_) => const LoginPage()),
-                      //   (_) => false,
-                      // );
+                    onPressed: () async {
+                      await Session.logout();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const Login_Page()),
+                        (route) => false,
+                      );
                     },
                     child: const Text(
                       "ออกจากระบบ",
@@ -159,13 +184,12 @@ class _ProfilePageState extends State<ProfilePage> {
       bottomNavigationBar: BottomNav(
         currentIndex: 3,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
-        argumentsPerIndex: [user, null, user, user],
+        argumentsPerIndex: [_user, _user, _user, _user],
       ),
     );
   }
 }
 
-/// ปุ่มเมนูในกล่องโปร่ง
 class _MenuButton extends StatelessWidget {
   final IconData icon;
   final String label;

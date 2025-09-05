@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/page/login_page.dart';
+import 'package:mobile_lotto/page/menu_page.dart';
 
 class Load_Page extends StatefulWidget {
   const Load_Page({super.key});
@@ -13,15 +15,34 @@ class Load_Page extends StatefulWidget {
 class _Load_PageState extends State<Load_Page> {
   Color maroon = const Color(0xFF017E89);
 
-  @override
+   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 4), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Login_Page()),
-      );
-    });
+    _decide();
+  }
+
+  Future<void> _decide() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    final uid = await Session.getUid();
+    if (!mounted) return;
+
+    if (uid != null) {
+      final user = await Session.getUser();
+      if (!mounted) return;
+
+      if (user != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Menu_page(user: user)),
+        );
+        return;
+      }
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const Login_Page()),
+    );
   }
 
   @override

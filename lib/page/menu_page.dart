@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
@@ -13,9 +14,51 @@ class Menu_page extends StatefulWidget {
 }
 
 class _Menu_pageState extends State<Menu_page> {
+  User? _user;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  @override
+  void didChangeDependencies() async {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+
+    if (widget.user != null) {
+      _user = widget.user;
+    } else {
+      if (args is User) {
+        _user = args;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+  }
+
+  Future<void> _bootstrap() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.user?.fullName ?? "สมาชิก";
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final displayName = _user?.fullName ?? "สมาชิก";
 
     return Scaffold(
       body: Container(
@@ -117,7 +160,7 @@ class _Menu_pageState extends State<Menu_page> {
       bottomNavigationBar: BottomNav(
         currentIndex: 0,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
-        argumentsPerIndex: [widget.user, null, widget.user, widget.user],
+        argumentsPerIndex: [_user, null, _user, _user],
       ),
     );
   }

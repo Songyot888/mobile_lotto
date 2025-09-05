@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/core/session.dart';
 
 import 'package:mobile_lotto/model/request/login_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
@@ -52,7 +53,8 @@ class _Login_PageState extends State<Login_Page> {
           SnackBar(content: Text("ยินดีต้อนรับ ${data.user.fullName}")),
         );
 
-        // ไปหน้าเมนูและล้างสแต็ก (กัน back กลับ)
+
+        await Session.saveUser(data.user);
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),

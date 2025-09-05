@@ -1,6 +1,6 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 
 class PersonalPage extends StatefulWidget {
@@ -11,15 +11,44 @@ class PersonalPage extends StatefulWidget {
 }
 
 class _PersonalPageState extends State<PersonalPage> {
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {
+    });
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState((){});
+    }
+  }
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)!.settings.arguments;
-    final user = args as User?;
-
-    debugPrint("User object: $user");
-    debugPrint("User fullName: ${user?.fullName}");
-    debugPrint("User email: ${user?.email}");
-    debugPrint("User phone: ${user?.phone}");
+    debugPrint("User object: $_user");
+    debugPrint("User fullName: ${_user?.fullName}");
+    debugPrint("User email: ${_user?.email}");
+    debugPrint("User phone: ${_user?.phone}");
 
     return Scaffold(
       appBar: AppBar(
@@ -56,7 +85,7 @@ class _PersonalPageState extends State<PersonalPage> {
                 width: 1,
               ),
             ),
-            child: user == null
+            child: _user == null
                 ? const Text(
                     "ไม่พบข้อมูลผู้ใช้",
                     style: TextStyle(color: Colors.white),
@@ -67,7 +96,7 @@ class _PersonalPageState extends State<PersonalPage> {
                     children: [
                       const SizedBox(height: 10),
                       Text(
-                        "ชื่อ: ${user.fullName ?? '-'}",
+                        "ชื่อ: ${_user?.fullName ?? '-'}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -75,7 +104,7 @@ class _PersonalPageState extends State<PersonalPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        "อีเมล: ${user.email ?? '-'}",
+                        "อีเมล: ${_user?.email ?? '-'}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -83,7 +112,7 @@ class _PersonalPageState extends State<PersonalPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        "เบอร์โทร: ${user.phone ?? '-'}",
+                        "เบอร์โทร: ${_user?.phone ?? '-'}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -91,7 +120,7 @@ class _PersonalPageState extends State<PersonalPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        "ธนาคาร: ${user.bankName ?? '-'}",
+                        "ธนาคาร: ${_user?.bankName ?? '-'}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -99,7 +128,7 @@ class _PersonalPageState extends State<PersonalPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        "เลขบัญชี: ${user.bankNumber}",
+                        "เลขบัญชี: ${_user?.bankNumber}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
