@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/page/bottom_nav.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 
 import 'package:mobile_lotto/model/response/login_res_post.dart';
@@ -92,23 +93,9 @@ class _Menu_pageState extends State<Menu_page> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF085056),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าแรก"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
-            label: "หวยของฉัน",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.wallet),
-            label: "กระเป๋าเงิน",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "สมาชิก"),
-        ],
+      bottomNavigationBar: BottomNav(
+        currentIndex: 0,
+        routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
   }
