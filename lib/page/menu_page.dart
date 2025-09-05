@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 
+import 'package:mobile_lotto/model/response/login_res_post.dart';
+
 class Menu_page extends StatefulWidget {
-   const Menu_page({super.key});
+  final User? user;
+  const Menu_page({super.key, this.user});
 
   @override
   State<Menu_page> createState() => _Menu_pageState();
@@ -11,9 +14,11 @@ class Menu_page extends StatefulWidget {
 class _Menu_pageState extends State<Menu_page> {
   @override
   Widget build(BuildContext context) {
+    final displayName = widget.user?.fullName ?? "สมาชิก";
+
     return Scaffold(
       body: Container(
-        height: MediaQuery.of(context).size.height, // ครอบเต็มหน้าจอ
+        height: MediaQuery.of(context).size.height,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -24,10 +29,8 @@ class _Menu_pageState extends State<Menu_page> {
         ),
         child: SingleChildScrollView(
           child: Column(
-            children: [ 
+            children: [
               const SizedBox(height: 50),
-
-              // 🔹 รูปซ้อนกัน
               Center(
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -44,8 +47,16 @@ class _Menu_pageState extends State<Menu_page> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 10),
+              Text(
+                "สวัสดี, $displayName",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
               const Text(
                 "จ่ายหนัก จ่ายจริง ไม่จำกัด",
                 style: TextStyle(
@@ -55,9 +66,11 @@ class _Menu_pageState extends State<Menu_page> {
                 ),
               ),
 
-             // 🔹 เมนู 4 ปุ่ม (Grid)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -66,10 +79,12 @@ class _Menu_pageState extends State<Menu_page> {
                   crossAxisSpacing: 20,
                   children: [
                     buildMenuCard(Icons.shopping_cart, "ซื้อหวย"),
-                    buildMenuCard(Icons.account_balance_wallet, "เครดิตเงิน(Wallet)"),
+                    buildMenuCard(
+                      Icons.account_balance_wallet,
+                      "เครดิตเงิน(Wallet)",
+                    ),
                     buildMenuCard(Icons.verified, "ตรวจลอตเตอรี่"),
                     buildMenuCard(Icons.access_time, "ผลรางวัลงวดที่ผ่านมา"),
-
                   ],
                 ),
               ),
@@ -77,36 +92,37 @@ class _Menu_pageState extends State<Menu_page> {
           ),
         ),
       ),
-
-      // 🔹 แถบเมนูล่าง
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFF085056),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
-        
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าแรก"),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "หวยของฉัน"),
-          BottomNavigationBarItem(icon: Icon(Icons.wallet), label: "กระเป๋าเงิน"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_bag),
+            label: "หวยของฉัน",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.wallet),
+            label: "กระเป๋าเงิน",
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "สมาชิก"),
         ],
       ),
     );
   }
 
-  // 🔹 ฟังก์ชันสร้างการ์ดเมนู
   Widget buildMenuCard(IconData icon, String text) {
     return InkWell(
-     onTap: () {
-      if (text == "เครดิตเงิน(Wallet)") {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Wallet_Page()),
-        );
-      } 
-    },
-
+      onTap: () {
+        if (text == "เครดิตเงิน(Wallet)") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const Wallet_Page()),
+          );
+        }
+      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.transparent,
@@ -129,7 +145,7 @@ class _Menu_pageState extends State<Menu_page> {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
-            )
+            ),
           ],
         ),
       ),
