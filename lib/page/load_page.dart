@@ -47,9 +47,9 @@ class _Load_PageState extends State<Load_Page> {
 
           const Align(
             alignment: Alignment(0, 0.85),
-            child: Text(
-              'กำลังโหลด...',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+            child: CircularProgressIndicator(
+              color: Colors.white70,
+              strokeWidth: 3,
             ),
           ),
         ],
