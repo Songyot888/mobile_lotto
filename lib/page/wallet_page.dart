@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class Wallet_Page extends StatefulWidget {
   const Wallet_Page({super.key});
@@ -8,7 +9,7 @@ class Wallet_Page extends StatefulWidget {
 }
 
 class _Wallet_PageState extends State<Wallet_Page> {
-  double balance = 9999.99; // ตัวอย่างเครดิตที่มี
+  double balance = 9999.99;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +28,6 @@ class _Wallet_PageState extends State<Wallet_Page> {
           child: Column(
             children: [
               const SizedBox(height: 50),
-
-              // 🔹 โลโก้ด้านบน
               Center(
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -45,10 +44,7 @@ class _Wallet_PageState extends State<Wallet_Page> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // 🔹 กล่องเครดิต
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 40),
                 padding: const EdgeInsets.all(20),
@@ -79,23 +75,23 @@ class _Wallet_PageState extends State<Wallet_Page> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // 🔹 ปุ่ม เติมเงิน / ถอนเงิน
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () {
-                      // TODO: ไปหน้าเติมเงิน
+                      Navigator.pushNamed(context, '/topup');
                     },
                     child: const Text(
                       "เติมเงิน",
@@ -106,13 +102,16 @@ class _Wallet_PageState extends State<Wallet_Page> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () {
-                      // TODO: ไปหน้าถอนเงิน
+                      Navigator.pushNamed(context, '/withdraw');
                     },
                     child: const Text(
                       "ถอนเงิน",
@@ -121,48 +120,42 @@ class _Wallet_PageState extends State<Wallet_Page> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 40),
-
-              // 🔹 ปุ่มเมนูเพิ่มเติม
-              buildMenuButton(Icons.receipt_long, "ประวัติการซื้อ"),
+              _buildMenuButton(
+                Icons.receipt_long,
+                "ประวัติการซื้อ",
+                onTap: () {
+                  Navigator.pushNamed(context, '/purchase-history');
+                },
+              ),
               const SizedBox(height: 15),
-              buildMenuButton(Icons.emoji_events, "ประวัติการถูกรางวัล"),
+              _buildMenuButton(
+                Icons.emoji_events,
+                "ประวัติการถูกรางวัล",
+                onTap: () {
+                  Navigator.pushNamed(context, '/winning-history');
+                },
+              ),
             ],
           ),
         ),
       ),
 
-      // 🔹 แถบเมนูล่าง
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF085056),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        currentIndex: 2, // หน้า Wallet = index 2
-        onTap: (index) {
-          // TODO: เขียน Navigation ไปหน้าต่าง ๆ
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าแรก"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag), label: "หวยของฉัน"),
-          BottomNavigationBarItem(icon: Icon(Icons.wallet), label: "กระเป๋าเงิน"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "สมาชิก"),
-        ],
+      // ✅ ใช้ BottomNav กลาง (แท็บกระเป๋าเงิน = index 2)
+      bottomNavigationBar: BottomNav(
+        currentIndex: 2,
+        routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
   }
 
-  // 🔹 ฟังก์ชันสร้างปุ่มเมนู
-  Widget buildMenuButton(IconData icon, String text) {
+  Widget _buildMenuButton(
+    IconData icon,
+    String text, {
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      onTap: () {
-        // TODO: ไปหน้าที่เกี่ยวข้อง
-      },
-
-
-      
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 40),
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
@@ -181,7 +174,7 @@ class _Wallet_PageState extends State<Wallet_Page> {
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
-            )
+            ),
           ],
         ),
       ),
