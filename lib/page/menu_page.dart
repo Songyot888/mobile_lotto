@@ -143,8 +143,8 @@ class _Menu_pageState extends State<Menu_page> {
                       },
                     ),
                     buildMenuCard(
-                      Icons.access_time,
-                      "ผลรางวัลงวดที่ผ่านมา",
+                      Icons.emoji_events,
+                      "ผลรางวัล",
                       onTap: () {
                         Navigator.pushNamed(context, '/previous-results');
                       },
