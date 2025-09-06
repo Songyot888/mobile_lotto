@@ -14,6 +14,7 @@ class RegisterRequest {
   String fullName;
   String phone;
   String email;
+  int balance;
   String bankName;
   String bankNumber;
   String password;
@@ -22,6 +23,7 @@ class RegisterRequest {
     required this.fullName,
     required this.phone,
     required this.email,
+    required this.balance,
     required this.bankName,
     required this.bankNumber,
     required this.password,
@@ -32,6 +34,7 @@ class RegisterRequest {
         fullName: json["fullName"],
         phone: json["phone"],
         email: json["email"],
+        balance: json["balance"],
         bankName: json["bankName"],
         bankNumber: json["bankNumber"],
         password: json["password"],
@@ -41,6 +44,7 @@ class RegisterRequest {
     "fullName": fullName,
     "phone": phone,
     "email": email,
+    "balance": balance,
     "bankName": bankName,
     "bankNumber": bankNumber,
     "password": password,

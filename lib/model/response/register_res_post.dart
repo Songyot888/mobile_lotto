@@ -11,34 +11,42 @@ String registerResponeToJson(RegisterRespone data) =>
     json.encode(data.toJson());
 
 class RegisterRespone {
-  int uid;
   String fullName;
+  String phone;
   String email;
+  int balance;
   String bankName;
   String bankNumber;
+  String password;
 
   RegisterRespone({
-    required this.uid,
     required this.fullName,
+    required this.phone,
     required this.email,
+    required this.balance,
     required this.bankName,
     required this.bankNumber,
+    required this.password,
   });
 
   factory RegisterRespone.fromJson(Map<String, dynamic> json) =>
       RegisterRespone(
-        uid: json["uid"],
         fullName: json["fullName"],
+        phone: json["phone"],
         email: json["email"],
+        balance: json["balance"],
         bankName: json["bankName"],
         bankNumber: json["bankNumber"],
+        password: json["password"],
       );
 
   Map<String, dynamic> toJson() => {
-    "uid": uid,
     "fullName": fullName,
+    "phone": phone,
     "email": email,
+    "balance": balance,
     "bankName": bankName,
     "bankNumber": bankNumber,
+    "password": password,
   };
 }

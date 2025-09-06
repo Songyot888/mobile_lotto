@@ -2,18 +2,36 @@
 import 'package:flutter/material.dart';
 
 class BottomNav extends StatelessWidget {
-  final int currentIndex;          // แท็บที่แอคทีฟของหน้านี้
-  final List<String> routeNames;   // ชื่อ route ของแต่ละแท็บ (ต้องมี 4 ตัว)
+  final int currentIndex; // แท็บที่แอคทีฟของหน้านี้
+  final List<String> routeNames; // ชื่อ route ของแต่ละแท็บ (ต้องมี 4 ตัว)
+
+  /// (ทางเลือก) arguments สำหรับแต่ละแท็บ ถ้ามีให้ส่งความยาว = 4
+  /// เช่น [null, null, null, user] เพื่อส่งให้แท็บ "สมาชิก"
+  final List<Object?>? argumentsPerIndex;
+
+  /// (ทางเลือก) custom handler ถ้าอยากควบคุมการนำทางเองทั้งหมด
+  final void Function(BuildContext context, int index)? onTap;
 
   const BottomNav({
     super.key,
     required this.currentIndex,
     required this.routeNames,
+    this.argumentsPerIndex,
+    this.onTap,
   }) : assert(routeNames.length == 4, 'routeNames ต้องมี 4 รายการ');
 
-  void _onTap(BuildContext context, int index) {
+  void _defaultOnTap(BuildContext context, int index) {
     if (index == currentIndex) return;
-    Navigator.pushReplacementNamed(context, routeNames[index]);
+    final args = (argumentsPerIndex != null && argumentsPerIndex!.length == 4)
+        ? argumentsPerIndex![index]
+        : null;
+
+    Navigator.pushNamed(
+      // 👈 เปลี่ยนเป็น pushNamed
+      context,
+      routeNames[index],
+      arguments: args,
+    );
   }
 
   @override
@@ -24,10 +42,14 @@ class BottomNav extends StatelessWidget {
       selectedItemColor: Colors.white,
       unselectedItemColor: Colors.white70,
       currentIndex: currentIndex,
-      onTap: (i) => _onTap(context, i),
+      onTap: (i) =>
+          (onTap != null) ? onTap!(context, i) : _defaultOnTap(context, i),
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าแรก"),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "หวยของฉัน"),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_bag),
+          label: "หวยของฉัน",
+        ),
         BottomNavigationBarItem(icon: Icon(Icons.wallet), label: "กระเป๋าเงิน"),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: "สมาชิก"),
       ],

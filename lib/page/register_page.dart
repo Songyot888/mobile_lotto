@@ -20,6 +20,7 @@ class _Register_PageState extends State<Register_Page> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController bankController = TextEditingController();
   final TextEditingController accountController = TextEditingController();
+  final TextEditingController balanceController = TextEditingController();
 
   // ✅ ฟังก์ชันกดปุ่มสมัครสมาชิก
   String getValue(TextEditingController c) => c.text.trim();
@@ -32,10 +33,13 @@ class _Register_PageState extends State<Register_Page> {
       bankName: bankController.text,
       bankNumber: accountController.text,
       password: passwordController.text,
+      balance: int.tryParse(balanceController.text.trim()) ?? 0,
     );
     http
         .post(
-          Uri.parse("https://lotto-api-5jq7.onrender.com/api/Auth/register"),
+          Uri.parse(
+            "https://lotto-api-production.up.railway.app/api/Auth/register",
+          ),
           headers: {"Content-Type": "application/json; charset=utf-8"},
           body: registerRequestToJson(req),
         )
@@ -146,6 +150,11 @@ class _Register_PageState extends State<Register_Page> {
                       "เลขบัญชี",
                       Icons.account_balance_wallet,
                       accountController,
+                    ),
+                    buildTextField(
+                      "จำนวนเงิน",
+                      Icons.account_balance_wallet,
+                      balanceController,
                     ),
 
                     const SizedBox(height: 20),

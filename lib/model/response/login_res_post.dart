@@ -25,15 +25,34 @@ class User {
   int uid;
   String fullName;
   String email;
+  String phone;
+  String bankName;
+  String bankNumber;
 
-  User({required this.uid, required this.fullName, required this.email});
+  User({
+    required this.uid,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.bankName,
+    required this.bankNumber,
+  });
 
-  factory User.fromJson(Map<String, dynamic> json) =>
-      User(uid: json["uid"], fullName: json["fullName"], email: json["email"]);
+  factory User.fromJson(Map<String, dynamic> json) => User(
+    uid: json["uid"],
+    fullName: json["fullName"],
+    email: json["email"],
+    phone: json["phone"],
+    bankName: json["bankName"],
+    bankNumber: json["bankNumber"],
+  );
 
   Map<String, dynamic> toJson() => {
     "uid": uid,
     "fullName": fullName,
     "email": email,
+    "phone": phone,
+    "bankName": bankName,
+    "bankNumber": bankNumber,
   };
 }

@@ -3,11 +3,13 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/core/session.dart';
 
 import 'package:mobile_lotto/model/request/login_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 
 import 'package:mobile_lotto/page/menu_page.dart';
+import 'package:mobile_lotto/page/register_page.dart';
 
 class Login_Page extends StatefulWidget {
   const Login_Page({super.key});
@@ -36,7 +38,7 @@ class _Login_PageState extends State<Login_Page> {
       );
 
       final res = await http.post(
-        Uri.parse("https://lotto-api-5jq7.onrender.com/api/Auth/login"),
+        Uri.parse("https://lotto-api-production.up.railway.app/api/Auth/login"),
         headers: {"Content-Type": "application/json; charset=utf-8"},
         body: loginRequestToJson(req),
       );
@@ -52,7 +54,7 @@ class _Login_PageState extends State<Login_Page> {
           SnackBar(content: Text("ยินดีต้อนรับ ${data.user.fullName}")),
         );
 
-        // ไปหน้าเมนูและล้างสแต็ก (กัน back กลับ)
+        await Session.saveUser(data.user);
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),
@@ -340,30 +342,45 @@ class _Login_PageState extends State<Login_Page> {
                         ),
 
                         const SizedBox(height: 20),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'สมัครสมาชิก ',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            // ปุ่มสมัครสมาชิก
+                            SizedBox(
+                              width: 140,
+                              height: 40,
+                              child: TextButton(
+                                onPressed: () =>
+                                    Navigator.pushNamed(context, '/register'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white, // สีตัวอักษร
+                                  textStyle: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                child: const Text('สมัครสมาชิก'),
                               ),
                             ),
-                            const SizedBox(width: 80),
-                            GestureDetector(
-                              onTap: () {
-                                // Navigator.push(context, MaterialPageRoute(builder: (_) => Register_Page()));
-                              },
-                              child: Text(
-                                'ลืมรหัสผ่าน?',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+
+                            const SizedBox(width: 24),
+
+                            // ปุ่มลืมรหัสผ่าน
+                            SizedBox(
+                              width: 140,
+                              height: 40,
+                              child: TextButton(
+                                onPressed: () {
+                                  // TODO: ไปหน้า forgot password
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  textStyle: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
+                                child: const Text('ลืมรหัสผ่าน?'),
                               ),
                             ),
                           ],

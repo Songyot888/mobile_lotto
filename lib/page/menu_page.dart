@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-
-
+import 'package:mobile_lotto/page/profile_page.dart';
 
 class Menu_page extends StatefulWidget {
   final User? user;
@@ -14,9 +14,51 @@ class Menu_page extends StatefulWidget {
 }
 
 class _Menu_pageState extends State<Menu_page> {
+  User? _user;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  @override
+  void didChangeDependencies() async {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+
+    if (widget.user != null) {
+      _user = widget.user;
+    } else {
+      if (args is User) {
+        _user = args;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+  }
+
+  Future<void> _bootstrap() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.user?.fullName ?? "สมาชิก";
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final displayName = _user?.fullName ?? "สมาชิก";
 
     return Scaffold(
       body: Container(
@@ -68,7 +110,10 @@ class _Menu_pageState extends State<Menu_page> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -76,18 +121,34 @@ class _Menu_pageState extends State<Menu_page> {
                   mainAxisSpacing: 20,
                   crossAxisSpacing: 20,
                   children: [
-                    buildMenuCard(Icons.shopping_cart, "ซื้อหวย", onTap: () {
-                      Navigator.pushNamed(context, '/buy');
-                    }),
-                    buildMenuCard(Icons.account_balance_wallet, "เครดิตเงิน(Wallet)", onTap: () {
-                      Navigator.pushNamed(context, '/wallet');
-                    }),
-                    buildMenuCard(Icons.verified, "ตรวจลอตเตอรี่", onTap: () {
-                      Navigator.pushNamed(context, '/check-lottery');
-                    }),
-                    buildMenuCard(Icons.access_time, "ผลรางวัลงวดที่ผ่านมา", onTap: () {
-                      Navigator.pushNamed(context, '/previous-results');
-                    }),
+                    buildMenuCard(
+                      Icons.shopping_cart,
+                      "ซื้อหวย",
+                      onTap: () {
+                        Navigator.pushNamed(context, '/buy');
+                      },
+                    ),
+                    buildMenuCard(
+                      Icons.account_balance_wallet,
+                      "เครดิตเงิน(Wallet)",
+                      onTap: () {
+                        Navigator.pushNamed(context, '/wallet');
+                      },
+                    ),
+                    buildMenuCard(
+                      Icons.verified,
+                      "ตรวจลอตเตอรี่",
+                      onTap: () {
+                        Navigator.pushNamed(context, '/check-lottery');
+                      },
+                    ),
+                    buildMenuCard(
+                      Icons.access_time,
+                      "ผลรางวัลงวดที่ผ่านมา",
+                      onTap: () {
+                        Navigator.pushNamed(context, '/previous-results');
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -99,12 +160,16 @@ class _Menu_pageState extends State<Menu_page> {
       bottomNavigationBar: BottomNav(
         currentIndex: 0,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
-
+        argumentsPerIndex: [_user, null, _user, _user],
       ),
     );
   }
 
-  Widget buildMenuCard(IconData icon, String text, {required VoidCallback onTap}) {
+  Widget buildMenuCard(
+    IconData icon,
+    String text, {
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: () {
         if (text == "เครดิตเงิน(Wallet)") {
@@ -112,6 +177,8 @@ class _Menu_pageState extends State<Menu_page> {
             context,
             MaterialPageRoute(builder: (context) => const Wallet_Page()),
           );
+        } else {
+          onTap(); // ✅ เรียก callback ที่ส่งเข้ามา
         }
       },
 
