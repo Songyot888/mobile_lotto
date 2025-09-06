@@ -41,6 +41,7 @@ class MyApp extends StatelessWidget {
         '/previous-results': (context) => const Placeholder(),
         '/personal': (context) => const PersonalPage(),
         '/register': (context) => Register_Page(),
+        '/admin': (context) => const Placeholder(),
       },
     );
   }
