@@ -184,7 +184,7 @@ class _AdminPageState extends State<AdminPage> {
 
       bottomNavigationBar: BottomNav(
         currentIndex: 0,
-        routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
+        routeNames: ['/admin', '/my-tickets', '/wallet', ''],
         argumentsPerIndex: [_user, null, _user, _user],
       ),
     );
