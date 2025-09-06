@@ -5,6 +5,31 @@ import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/profile_page.dart';
 
+/// =====================
+/// ไอคอนสไตล์วงกลมโปร่งใส + ขอบ (เหมือนตัวอย่างรูป)
+/// =====================
+class FancyIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+
+  const FancyIcon({super.key, required this.icon, this.size = 48});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size + 20,
+      height: size + 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withOpacity(0.06), // วงกลมโปร่งใส
+        border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.6),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: size, color: Colors.white),
+    );
+  }
+}
+
 class AdminPage extends StatefulWidget {
   final User? user;
   const AdminPage({super.key, this.user});
@@ -122,31 +147,31 @@ class _AdminPageState extends State<AdminPage> {
                   crossAxisSpacing: 20,
                   children: [
                     buildMenuCard(
-                      Icons.shopping_cart,
-                      "ซื้อหวย",
+                      Icons.add,
+                      "เพิ่มล็อตเตอรี่",
                       onTap: () {
                         Navigator.pushNamed(context, '');
                       },
                     ),
                     buildMenuCard(
-                      Icons.account_balance_wallet,
-                      "เครดิตเงิน(Wallet)",
+                      Icons.refresh, // แนะนำใช้หมุนสำหรับ "สุ่มผลรางวัล"
+                      "สุ่มผลรางวัล",
                       onTap: () {
                         Navigator.pushNamed(context, '');
                       },
                     ),
                     buildMenuCard(
-                      Icons.verified,
-                      "ตรวจลอตเตอรี่",
+                      Icons.restart_alt,
+                      "รีเซ็ตระบบ",
                       onTap: () {
                         Navigator.pushNamed(context, '');
                       },
                     ),
                     buildMenuCard(
-                      Icons.access_time,
-                      "ผลรางวัลงวดที่ผ่านมา",
+                      Icons.new_releases,
+                      "ล็อตเตอรี่ที่เพิ่มใหม่",
                       onTap: () {
-                        Navigator.pushNamed(context, '/previous-results');
+                        Navigator.pushNamed(context, '');
                       },
                     ),
                   ],
@@ -178,10 +203,9 @@ class _AdminPageState extends State<AdminPage> {
             MaterialPageRoute(builder: (context) => const Wallet_Page()),
           );
         } else {
-          onTap(); // ✅ เรียก callback ที่ส่งเข้ามา
+          onTap();
         }
       },
-
       child: Container(
         decoration: BoxDecoration(
           color: Colors.transparent,
@@ -194,8 +218,10 @@ class _AdminPageState extends State<AdminPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 45, color: Colors.white),
-            const SizedBox(height: 10),
+            /// ใช้ไอคอนสไตล์วงกลมโปร่งใสแทน Icon ปกติ
+            const SizedBox(height: 4),
+            FancyIcon(icon: icon, size: 42),
+            const SizedBox(height: 12),
             Text(
               text,
               textAlign: TextAlign.center,
@@ -203,6 +229,7 @@ class _AdminPageState extends State<AdminPage> {
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
+                height: 1.1,
               ),
             ),
           ],
