@@ -5,15 +5,15 @@ import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/profile_page.dart';
 
-class Menu_page extends StatefulWidget {
+class AdminPage extends StatefulWidget {
   final User? user;
-  const Menu_page({super.key, this.user});
+  const AdminPage({super.key, this.user});
 
   @override
-  State<Menu_page> createState() => _Menu_pageState();
+  State<AdminPage> createState() => _AdminPageState();
 }
 
-class _Menu_pageState extends State<Menu_page> {
+class _AdminPageState extends State<AdminPage> {
   User? _user;
   bool _loading = true;
 
@@ -102,7 +102,7 @@ class _Menu_pageState extends State<Menu_page> {
               ),
               const SizedBox(height: 6),
               const Text(
-                "จ่ายหนัก จ่ายจริง ไม่จำกัด",
+                "ADMIN PAGE",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,

@@ -7,6 +7,7 @@ import 'package:mobile_lotto/core/session.dart';
 
 import 'package:mobile_lotto/model/request/login_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
+import 'package:mobile_lotto/page/admin_page.dart';
 
 import 'package:mobile_lotto/page/menu_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
@@ -55,11 +56,20 @@ class _Login_PageState extends State<Login_Page> {
         );
 
         await Session.saveUser(data.user);
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),
-          (route) => false,
-        );
+        if (data.user.role == 'admin') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => AdminPage(user: data.user)),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),
+            (route) => false,
+          );
+        }
+        ;
       } else {
         String message = "เข้าสู่ระบบไม่สำเร็จ";
         try {
