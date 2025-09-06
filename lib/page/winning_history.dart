@@ -3,14 +3,14 @@ import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
-class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+class WinningHistory extends StatefulWidget {
+  const WinningHistory({super.key});
 
   @override
-  State<HistoryPage> createState() => _HistoryPageState();
+  State<WinningHistory> createState() => _WinningHistoryState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
+class _WinningHistoryState extends State<WinningHistory> {
   User? _user;
 
   @override
@@ -54,7 +54,7 @@ class _HistoryPageState extends State<HistoryPage> {
           },
         ),
         title: const Text(
-          "ประวัติการซื้อ",
+          "ประวัติการถูกรางวัล",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: false,
@@ -89,7 +89,7 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
         child: const Center(
           child: Text(
-            "เนื้อหาประวัติการซื้อ",
+            "เนื้อหาประวัติการถูกรางวัล",
             style: TextStyle(color: Colors.white, fontSize: 18),
           ),
         ),

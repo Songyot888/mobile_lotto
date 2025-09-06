@@ -141,8 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.edit_outlined,
                   label: "แก้ไขข้อมูลส่วนตัว",
                   onTap: () {
-                    // TODO: นำทางไปหน้าแก้ไขข้อมูล
-                    // Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                    Navigator.pushNamed(context, '/edit', arguments: _user);
                   },
                 ),
                 const SizedBox(height: 18),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/page/editprofile_page.dart';
 import 'package:mobile_lotto/page/load_page.dart';
 import 'package:mobile_lotto/page/history_page.dart';
 import 'package:mobile_lotto/page/login_page.dart';
@@ -7,6 +8,7 @@ import 'package:mobile_lotto/page/personal_page.dart';
 import 'package:mobile_lotto/page/profile_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
+import 'package:mobile_lotto/page/winning_history.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,13 +37,14 @@ class MyApp extends StatelessWidget {
         '/topup': (context) => const Placeholder(),
         '/withdraw': (context) => const Placeholder(),
         '/purchase-history': (context) => const HistoryPage(),
-        '/winning-history': (context) => const Placeholder(),
+        '/winning-history': (context) => const WinningHistory(),
         '/buy': (context) => const Placeholder(),
         '/check-lottery': (context) => const Placeholder(),
         '/previous-results': (context) => const Placeholder(),
         '/personal': (context) => const PersonalPage(),
         '/register': (context) => Register_Page(),
         '/admin': (context) => const Placeholder(),
+        '/edit': (context) => const EditprofilePage(),
       },
     );
   }
