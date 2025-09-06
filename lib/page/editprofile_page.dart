@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
+import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class EditprofilePage extends StatefulWidget {
   const EditprofilePage({super.key});
@@ -301,6 +302,11 @@ class _EditprofilePageState extends State<EditprofilePage> {
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNav(
+        currentIndex: 3,
+        routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
+        argumentsPerIndex: [_user, _user, _user, _user],
       ),
     );
   }
