@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/page/admin_page.dart';
 import 'package:mobile_lotto/page/editprofile_page.dart';
 import 'package:mobile_lotto/page/load_page.dart';
 import 'package:mobile_lotto/page/history_page.dart';
@@ -43,7 +44,7 @@ class MyApp extends StatelessWidget {
         '/previous-results': (context) => const Placeholder(),
         '/personal': (context) => const PersonalPage(),
         '/register': (context) => Register_Page(),
-        '/admin': (context) => const Placeholder(),
+        '/admin': (context) => const AdminPage(),
         '/edit': (context) => const EditprofilePage(),
       },
     );
