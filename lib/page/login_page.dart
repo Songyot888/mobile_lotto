@@ -29,7 +29,6 @@ class _Login_PageState extends State<Login_Page> {
 
   Future<void> _doLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _loading = true);
     try {
       final req = LoginRequest(
