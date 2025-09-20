@@ -18,7 +18,7 @@ class BuyLottoPage extends StatefulWidget {
 
 class _BuyLottoPageState extends State<BuyLottoPage> {
   User? _user;
-  List<String> _suggestNumbers = [];
+  List<AllLotteryResGet> allLotteryresget = [];
 
   @override
   void initState() {
@@ -50,18 +50,48 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
   }
 
   Future<void> _all() async {
-    var res = await http.post(
-      Uri.parse("https://lotto-api-production.up.railway.app/api/User/unsold"),
-      headers: {"Content-Type": "application/json; charset=utf-8"},
-    );
-    if (res.statusCode != 200) {
-      log("Error fetching data: ${res.statusCode}");
-      return;
-    } else {
-      final list = List<String>.from(jsonDecode(res.body));
-      setState(() {
-        _suggestNumbers = list;
-      });
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "https://lotto-api-production.up.railway.app/api/User/unsold",
+        ),
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+      );
+
+      log("ALL status: ${res.statusCode}");
+
+      // ✅ เพิ่มการตรวจสอบ status code ตรงนี้
+      if (res.statusCode == 200) {
+        // ถ้าสำเร็จ (status 200 OK) ถึงจะทำการแปลงข้อมูล
+        log("ALL body  : ${res.body}");
+        final parsed = allLotteryResGetFromJson(res.body);
+
+        if (!mounted) return;
+        setState(() {
+          allLotteryresget = parsed;
+        });
+      } else {
+        // ถ้าไม่สำเร็จ (เช่น 500, 404, etc.)
+        // ให้แสดงข้อความแจ้งเตือนผู้ใช้
+        log("API Error with status: ${res.statusCode}");
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ไม่สามารถดึงข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      // Catch จะทำงานเมื่อเกิดปัญหาอื่นๆ เช่น ไม่มีอินเทอร์เน็ต หรือ FormatException
+      log("Error on _all()", error: e, stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เกิดข้อผิดพลาดในการเชื่อมต่อ'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -166,13 +196,16 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
 
                 // การ์ดเลขแนะนำ
                 Column(
-                  children: _suggestNumbers.map((num) {
+                  children: allLotteryresget.map((e) {
+                    final display = (e.number)
+                        .toString(); // กันไว้เป็น String เสมอ
                     return _SuggestionCard(
-                      number: num.toString(),
+                      number: display.isEmpty ? '-' : display,
                       onBuy: () {
-                        // TODO: ไปหน้ากรอกจำนวน/ยืนยันรายการ
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('กดซื้อเลข $num (ตัวอย่าง)')),
+                          SnackBar(
+                            content: Text('กดซื้อเลข $display (ตัวอย่าง)'),
+                          ),
                         );
                       },
                     );
@@ -188,8 +221,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
-        // ถ้ามี argumentsPerIndex ใน BottomNav ของคุณ ให้ส่ง user ต่อไปได้
-        // argumentsPerIndex: [widget.user, widget.user, widget.user, widget.user],
       ),
     );
   }

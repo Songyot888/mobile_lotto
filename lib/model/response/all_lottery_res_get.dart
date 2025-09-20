@@ -17,7 +17,7 @@ class AllLotteryResGet {
   String number;
   int price;
   int total;
-  DateTime date;
+  String date;
   DateTime startDate;
   DateTime endDate;
 
@@ -33,13 +33,13 @@ class AllLotteryResGet {
 
   factory AllLotteryResGet.fromJson(Map<String, dynamic> json) =>
       AllLotteryResGet(
-        lid: json["lid"],
-        number: json["number"],
-        price: json["price"],
-        total: json["total"],
-        date: DateTime.parse(json["date"]),
-        startDate: DateTime.parse(json["startDate"]),
-        endDate: DateTime.parse(json["endDate"]),
+        lid: (json["lid"] as num).toInt(),
+        number: json["number"].toString(),
+        price: (json["price"] as num).toInt(),
+        total: (json["total"] as num).toInt(),
+        date: json["date"].toString(),
+        startDate: DateTime.parse(json["startDate"].toString()),
+        endDate: DateTime.parse(json["endDate"].toString()),
       );
 
   Map<String, dynamic> toJson() => {
@@ -47,7 +47,7 @@ class AllLotteryResGet {
     "number": number,
     "price": price,
     "total": total,
-    "date": date.toIso8601String(),
+    "date": date,
     "startDate":
         "${startDate.year.toString().padLeft(4, '0')}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}",
     "endDate":
