@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/core/session.dart';
+import 'package:mobile_lotto/model/response/all_lottery_res_get.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
@@ -11,11 +17,57 @@ class BuyLottoPage extends StatefulWidget {
 }
 
 class _BuyLottoPageState extends State<BuyLottoPage> {
+  User? _user;
+  List<String> _suggestNumbers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+    _all(); // เรียก API ตัวอย่าง
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> _all() async {
+    var res = await http.post(
+      Uri.parse("https://lotto-api-production.up.railway.app/api/User/unsold"),
+      headers: {"Content-Type": "application/json; charset=utf-8"},
+    );
+    if (res.statusCode != 200) {
+      log("Error fetching data: ${res.statusCode}");
+      return;
+    } else {
+      final list = List<String>.from(jsonDecode(res.body));
+      setState(() {
+        _suggestNumbers = list;
+      });
+    }
+    log(res.body);
+  }
+
   // ไม่ต้องมีโหมดแล้ว เพราะให้โชว์สีคงที่ตลอด
   final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
-
-  // ตัวอย่างเลขแนะนำประจำวัน
-  final List<String> _suggestNumbers = ["5187456", "5187456", "9456123"];
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +112,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                         ),
                       ),
                     ),
-                    _BalancePill(amount: balance),
+                    _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
 
@@ -117,7 +169,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                 Column(
                   children: _suggestNumbers.map((num) {
                     return _SuggestionCard(
-                      number: num,
+                      number: num.toString(),
                       onBuy: () {
                         // TODO: ไปหน้ากรอกจำนวน/ยืนยันรายการ
                         ScaffoldMessenger.of(context).showSnackBar(

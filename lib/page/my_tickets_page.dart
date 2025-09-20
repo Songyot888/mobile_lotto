@@ -1,15 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart'; // ใช้ BottomNav ของโปรเจกต์คุณ
 
-class MyTicketsPage extends StatelessWidget {
+class MyTicketsPage extends StatefulWidget {
   final User? user;
   const MyTicketsPage({super.key, this.user});
 
   @override
-  Widget build(BuildContext context) {
-    final balance = user?.balance?.toDouble() ?? 9799.99;
+  State<MyTicketsPage> createState() => _MyTicketsPageState();
+}
 
+class _MyTicketsPageState extends State<MyTicketsPage> {
+  User? _user;
+  double get balance => widget.user?.balance ?? 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // ตัวอย่างรายการที่ซื้อ (Mock)
     final tickets = <_Ticket>[
       _Ticket(number: "5187456", price: 100, status: "สำเร็จ"),
@@ -23,7 +58,8 @@ class MyTicketsPage extends StatelessWidget {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xFF006064), Color(0xFF00838F), Color(0xFF006064)],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -38,7 +74,10 @@ class MyTicketsPage extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 6),
@@ -46,10 +85,13 @@ class MyTicketsPage extends StatelessWidget {
                       child: Text(
                         "หวยของฉัน",
                         style: TextStyle(
-                          color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    _BalancePill(amount: balance),
+                    _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
 
@@ -95,11 +137,18 @@ class _BalancePill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.account_balance_wallet, color: Colors.white, size: 18),
+          const Icon(
+            Icons.account_balance_wallet,
+            color: Colors.white,
+            size: 18,
+          ),
           const SizedBox(width: 6),
           Text(
             amount.toStringAsFixed(2),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -111,7 +160,11 @@ class _Ticket {
   final String number;
   final int price;
   final String status;
-  const _Ticket({required this.number, required this.price, required this.status});
+  const _Ticket({
+    required this.number,
+    required this.price,
+    required this.status,
+  });
 }
 
 class _TicketCard extends StatelessWidget {

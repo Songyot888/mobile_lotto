@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/page/addlottery_page.dart';
 import 'package:mobile_lotto/page/admin_page.dart';
 import 'package:mobile_lotto/page/buy_lotto_page.dart';
 import 'package:mobile_lotto/page/check_lottery_page.dart';
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => Register_Page(),
         '/admin': (context) => const AdminPage(),
         '/edit': (context) => const EditprofilePage(),
+        '/addlottery': (context) => const AddlotteryPage(),
       },
     );
   }

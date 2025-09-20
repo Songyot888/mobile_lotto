@@ -1,21 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart'; // ใช้ BottomNav เดิมของโปรเจกต์
 
-class CheckLotteryPage extends StatelessWidget {
+class CheckLotteryPage extends StatefulWidget {
   final User? user;
   const CheckLotteryPage({super.key, this.user});
 
   @override
+  State<CheckLotteryPage> createState() => _CheckLotteryPageState();
+}
+
+class _CheckLotteryPageState extends State<CheckLotteryPage> {
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final balance = user?.balance?.toDouble() ?? 9999.99;
+    final balance = widget.user?.balance?.toDouble() ?? 9999.99;
 
     // ตัวอย่างเลขที่ต้องการตรวจ (mock)
-    final numbers = <String>[
-      "5187456",
-      "5187456",
-      "5187456",
-    ];
+    final numbers = <String>["5187456", "5187456", "5187456"];
 
     return Scaffold(
       // ✅ พื้นหลังเต็มจอ
@@ -24,7 +56,8 @@ class CheckLotteryPage extends StatelessWidget {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xFF006064), Color(0xFF00838F), Color(0xFF006064)],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -39,7 +72,10 @@ class CheckLotteryPage extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 6),
@@ -47,10 +83,13 @@ class CheckLotteryPage extends StatelessWidget {
                       child: Text(
                         "ตรวจล็อตเตอรี่",
                         style: TextStyle(
-                          color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    _BalancePill(amount: balance),
+                    _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
 
@@ -59,22 +98,29 @@ class CheckLotteryPage extends StatelessWidget {
                   child: Text(
                     "ตรวจล็อตเตอรี่",
                     style: TextStyle(
-                      color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 // รายการการ์ดสำหรับเลขแต่ละใบ
                 Column(
-                  children: numbers.map((n) => _CheckCard(
-                    number: n,
-                    onCheck: () {
-                      // TODO: ต่อ API ตรวจผลจริงได้ที่นี่
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('ตรวจเลข $n (ตัวอย่าง)')),
-                      );
-                    },
-                  )).toList(),
+                  children: numbers
+                      .map(
+                        (n) => _CheckCard(
+                          number: n,
+                          onCheck: () {
+                            // TODO: ต่อ API ตรวจผลจริงได้ที่นี่
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('ตรวจเลข $n (ตัวอย่าง)')),
+                            );
+                          },
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             ),
@@ -110,11 +156,18 @@ class _BalancePill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.account_balance_wallet, color: Colors.white, size: 18),
+          const Icon(
+            Icons.account_balance_wallet,
+            color: Colors.white,
+            size: 18,
+          ),
           const SizedBox(width: 6),
           Text(
             amount.toStringAsFixed(2),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -167,13 +220,18 @@ class _CheckCard extends StatelessWidget {
             onPressed: onCheck,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32), // เขียวเข้มคล้ายดีไซน์
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               elevation: 0,
             ),
             child: const Text(
               "ตรวจล็อตเตอรี่",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

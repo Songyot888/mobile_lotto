@@ -150,7 +150,7 @@ class _AdminPageState extends State<AdminPage> {
                       Icons.add,
                       "เพิ่มล็อตเตอรี่",
                       onTap: () {
-                        Navigator.pushNamed(context, '');
+                        Navigator.pushNamed(context, '/addlottery');
                       },
                     ),
                     buildMenuCard(
