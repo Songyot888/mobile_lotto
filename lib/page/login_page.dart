@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
 
 import 'package:mobile_lotto/model/request/login_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-
+import 'package:mobile_lotto/page/admin_page.dart';
 import 'package:mobile_lotto/page/menu_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
 
@@ -27,6 +26,54 @@ class _Login_PageState extends State<Login_Page> {
   bool _loading = false;
   bool _obscure = true;
 
+  // ---------- NEW: Dialog แจ้งผล ----------
+  void _showResultDialog(
+    String message, {
+    bool success = true,
+    VoidCallback? onClosed,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF00838F), // โทนเดียวกับตัวอย่าง
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 22,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              success ? Icons.check_circle : Icons.error,
+              color: Colors.white,
+              size: 40,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // ปิดเองอัตโนมัติแล้วเรียก onClosed (ถ้ามี)
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // ปิด dialog
+      onClosed?.call();
+    });
+  }
+  // ----------------------------------------
+
   Future<void> _doLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -45,19 +92,32 @@ class _Login_PageState extends State<Login_Page> {
       log("LOGIN status: ${res.statusCode}");
       log("LOGIN body  : ${res.body}");
 
+      if (!mounted) return;
+
       if (res.statusCode == 200) {
         final data = loginResponeFromJson(res.body);
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("ยินดีต้อนรับ ${data.user.fullName}")),
-        );
 
         await Session.saveUser(data.user);
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),
-          (route) => false,
+
+        // ✅ โชว์การ์ด "เข้าสู่ระบบเรียบร้อย" แล้วนำทางตาม role
+        _showResultDialog(
+          "เข้าสู่ระบบเรียบร้อย",
+          success: true,
+          onClosed: () {
+            if (data.user.role == 'admin') {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => AdminPage(user: data.user)),
+                (route) => false,
+              );
+            } else {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => Menu_page(user: data.user)),
+                (route) => false,
+              );
+            }
+          },
         );
       } else {
         String message = "เข้าสู่ระบบไม่สำเร็จ";
@@ -65,17 +125,14 @@ class _Login_PageState extends State<Login_Page> {
           final j = jsonDecode(res.body);
           if (j is Map && j["message"] is String) message = j["message"];
         } catch (_) {}
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+
+        // ❌ โชว์การ์ดแจ้งข้อความผิดพลาด
+        _showResultDialog(message, success: false);
       }
     } catch (e) {
       log("LOGIN error: $e");
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ")),
-      );
+      _showResultDialog("เกิดข้อผิดพลาดในการเชื่อมต่อ", success: false);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -149,19 +206,14 @@ class _Login_PageState extends State<Login_Page> {
                     child: Column(
                       children: [
                         const SizedBox(height: 30),
-                        Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Text(
-                                'ยินดีต้อนรับสู่ LOTTO888',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        const Center(
+                          child: Text(
+                            'ยินดีต้อนรับสู่ LOTTO888',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -291,7 +343,7 @@ class _Login_PageState extends State<Login_Page> {
 
                         const SizedBox(height: 40),
 
-                        // Login Button
+                        // Login Button (gradient เดิม)
                         SizedBox(
                           width: 300,
                           height: 50,
@@ -352,7 +404,7 @@ class _Login_PageState extends State<Login_Page> {
                                 onPressed: () =>
                                     Navigator.pushNamed(context, '/register'),
                                 style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white, // สีตัวอักษร
+                                  foregroundColor: Colors.white,
                                   textStyle: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -361,9 +413,7 @@ class _Login_PageState extends State<Login_Page> {
                                 child: const Text('สมัครสมาชิก'),
                               ),
                             ),
-
                             const SizedBox(width: 24),
-
                             // ปุ่มลืมรหัสผ่าน
                             SizedBox(
                               width: 140,

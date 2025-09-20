@@ -3,6 +3,7 @@
 //     final loginRespone = loginResponeFromJson(jsonString);
 
 import 'dart:convert';
+import 'dart:ffi';
 
 LoginRespone loginResponeFromJson(String str) =>
     LoginRespone.fromJson(json.decode(str));
@@ -25,34 +26,42 @@ class User {
   int uid;
   String fullName;
   String email;
+  double balance;
   String phone;
   String bankName;
   String bankNumber;
+  String role;
 
   User({
     required this.uid,
     required this.fullName,
     required this.email,
+    required this.balance,
     required this.phone,
     required this.bankName,
     required this.bankNumber,
+    required this.role,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
     uid: json["uid"],
     fullName: json["fullName"],
     email: json["email"],
+    balance: json["balance"],
     phone: json["phone"],
     bankName: json["bankName"],
     bankNumber: json["bankNumber"],
+    role: json["role"],
   );
 
   Map<String, dynamic> toJson() => {
     "uid": uid,
     "fullName": fullName,
     "email": email,
+    "balance": balance,
     "phone": phone,
     "bankName": bankName,
     "bankNumber": bankNumber,
+    "role": role,
   };
 }

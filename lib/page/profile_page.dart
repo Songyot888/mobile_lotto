@@ -49,6 +49,8 @@ class _ProfilePageState extends State<ProfilePage> {
     debugPrint("User object: $_user");
     debugPrint("User fullName: ${_user?.fullName}");
     debugPrint("User email: ${_user?.email}");
+    debugPrint("User role: ${_user?.role}");
+    debugPrint("User balance: ${_user?.balance}");
 
     return Scaffold(
       // ===== AppBar =====
@@ -72,8 +74,8 @@ class _ProfilePageState extends State<ProfilePage> {
               color: const Color.fromARGB(255, 6, 180, 151),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
-              "฿ 9999.99",
+            child: Text(
+              "฿ ${(_user?.balance ?? 0).toStringAsFixed(2)}",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -139,8 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.edit_outlined,
                   label: "แก้ไขข้อมูลส่วนตัว",
                   onTap: () {
-                    // TODO: นำทางไปหน้าแก้ไขข้อมูล
-                    // Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                    Navigator.pushNamed(context, '/edit', arguments: _user);
                   },
                 ),
                 const SizedBox(height: 18),

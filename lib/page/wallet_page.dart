@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
+import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
-
 
 class Wallet_Page extends StatefulWidget {
   const Wallet_Page({super.key});
@@ -10,7 +11,35 @@ class Wallet_Page extends StatefulWidget {
 }
 
 class _Wallet_PageState extends State<Wallet_Page> {
-  double balance = 9999.99;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +95,7 @@ class _Wallet_PageState extends State<Wallet_Page> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      balance.toStringAsFixed(2),
+                      " ${(_user?.balance ?? 0).toStringAsFixed(2)} ฿",
                       style: const TextStyle(
                         fontSize: 28,
                         color: Colors.white,
