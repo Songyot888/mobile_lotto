@@ -51,6 +51,7 @@ class _ProfilePageState extends State<ProfilePage> {
     debugPrint("User email: ${_user?.email}");
     debugPrint("User role: ${_user?.role}");
     debugPrint("User balance: ${_user?.balance}");
+    debugPrint("User Id: ${_user?.uid}");
 
     return Scaffold(
       // ===== AppBar =====
