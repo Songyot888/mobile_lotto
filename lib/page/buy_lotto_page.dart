@@ -63,7 +63,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
         _suggestNumbers = list;
       });
     }
-    log(res.body);
   }
 
   // ไม่ต้องมีโหมดแล้ว เพราะให้โชว์สีคงที่ตลอด
