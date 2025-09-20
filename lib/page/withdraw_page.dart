@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
@@ -11,13 +12,14 @@ class WithdrawPage extends StatefulWidget {
 }
 
 class _WithdrawPageState extends State<WithdrawPage> {
+  User? _user;
+
   final TextEditingController _accCtrl = TextEditingController();
   final TextEditingController _bankCtrl = TextEditingController();
   final TextEditingController _amountCtrl = TextEditingController();
 
   bool _loading = false;
-
-  double get _balance => widget.user?.balance?.toDouble() ?? 9999.99;
+  double get balance => widget.user?.balance ?? 0.0;
 
   @override
   void initState() {
@@ -25,6 +27,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
     // เติมค่าจาก user ถ้ามี
     final acc = widget.user?.bankNumber ?? 'xxx-xxx-020';
     final bank = widget.user?.bankName ?? 'ธนาคาร กรุงโรม';
+    _loadFromSession();
     _accCtrl.text = acc;
     _bankCtrl.text = bank;
   }
@@ -35,6 +38,28 @@ class _WithdrawPageState extends State<WithdrawPage> {
     _bankCtrl.dispose();
     _amountCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   // Dialog แจ้งผล (สไตล์เดียวกับหน้าอื่น ๆ)
@@ -50,12 +75,20 @@ class _WithdrawPageState extends State<WithdrawPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 40),
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+                size: 40,
+              ),
               const SizedBox(height: 12),
               Text(
                 msg,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -80,7 +113,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
       _showResultDialog('กรุณากรอกจำนวนเงินให้ถูกต้อง', success: false);
       return;
     }
-    if (amount > _balance) {
+    if (amount > balance) {
       _showResultDialog('ยอดเงินไม่พอสำหรับการถอน', success: false);
       return;
     }
@@ -106,7 +139,8 @@ class _WithdrawPageState extends State<WithdrawPage> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xFF006064), Color(0xFF00838F), Color(0xFF006064)],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -121,17 +155,24 @@ class _WithdrawPageState extends State<WithdrawPage> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 6),
                     const Expanded(
                       child: Text(
                         "ถอนเงิน",
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    _BalancePill(amount: _balance),
+                    _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
 
@@ -140,7 +181,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
                 // การ์ดกลาง
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(18),
@@ -177,35 +221,59 @@ class _WithdrawPageState extends State<WithdrawPage> {
                             child: ElevatedButton(
                               onPressed: _loading ? null : _doWithdraw,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2E7D32), // เขียว
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor: const Color(
+                                  0xFF2E7D32,
+                                ), // เขียว
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 elevation: 0,
                               ),
                               child: _loading
                                   ? const SizedBox(
-                                      height: 18, width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
                                     )
                                   : const Text(
                                       "ถอนเงิน",
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
                                     ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _loading ? null : () => Navigator.pop(context),
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.pop(context),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD32F2F), // แดง
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 elevation: 0,
                               ),
                               child: const Text(
                                 "ยกเลิก",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
@@ -246,11 +314,18 @@ class _BalancePill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.account_balance_wallet, color: Colors.white, size: 18),
+          const Icon(
+            Icons.account_balance_wallet,
+            color: Colors.white,
+            size: 18,
+          ),
           const SizedBox(width: 6),
           Text(
             amount.toStringAsFixed(2),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

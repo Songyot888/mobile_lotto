@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
@@ -11,6 +12,8 @@ class TopUpPage extends StatefulWidget {
 }
 
 class _TopUpPageState extends State<TopUpPage> {
+  User? _user;
+  double get balance => widget.user?.balance ?? 0.0;
   final TextEditingController _amountCtrl = TextEditingController();
   bool _loading = false;
 
@@ -18,6 +21,34 @@ class _TopUpPageState extends State<TopUpPage> {
   void dispose() {
     _amountCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   // ✅ Dialog การแจ้งผล
@@ -84,7 +115,7 @@ class _TopUpPageState extends State<TopUpPage> {
 
   @override
   Widget build(BuildContext context) {
-    final balance = widget.user?.balance?.toDouble() ?? 9999.99;
+    _BalancePill(amount: _user?.balance ?? 0);
 
     return Scaffold(
       body: Container(
