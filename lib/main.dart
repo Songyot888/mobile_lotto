@@ -13,8 +13,10 @@ import 'package:mobile_lotto/page/personal_page.dart';
 import 'package:mobile_lotto/page/profile_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
 import 'package:mobile_lotto/page/results_page.dart';
+import 'package:mobile_lotto/page/topup_page.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/page/winning_history.dart';
+import 'package:mobile_lotto/page/withdraw_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -40,8 +42,8 @@ class MyApp extends StatelessWidget {
         '/my-tickets': (context) => const MyTicketsPage(),
         '/wallet': (context) => const Wallet_Page(),
         '/member': (context) => const ProfilePage(),
-        '/topup': (context) => const Placeholder(),
-        '/withdraw': (context) => const Placeholder(),
+        '/topup': (context) => const TopUpPage(),
+        '/withdraw': (context) => const WithdrawPage(),
         '/purchase-history': (context) => const HistoryPage(),
         '/winning-history': (context) => const WinningHistory(),
         '/buy': (context) => const BuyLottoPage(),
