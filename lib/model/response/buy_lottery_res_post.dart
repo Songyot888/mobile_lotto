@@ -15,8 +15,8 @@ class BuyLotteryResPost {
   int orderId;
   int lotteryId;
   String number;
-  int price;
-  int wallet;
+  num price;
+  num wallet;
 
   BuyLotteryResPost({
     required this.message,
