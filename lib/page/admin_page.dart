@@ -157,7 +157,7 @@ class _AdminPageState extends State<AdminPage> {
                       Icons.refresh, // แนะนำใช้หมุนสำหรับ "สุ่มผลรางวัล"
                       "สุ่มผลรางวัล",
                       onTap: () {
-                        Navigator.pushNamed(context, '');
+                        Navigator.pushNamed(context, '/random-draw');
                       },
                     ),
                     buildMenuCard(
@@ -182,11 +182,11 @@ class _AdminPageState extends State<AdminPage> {
         ),
       ),
 
-      bottomNavigationBar: BottomNav(
-        currentIndex: 0,
-        routeNames: ['/admin', '/my-tickets', '/wallet', ''],
-        argumentsPerIndex: [_user, null, _user, _user],
-      ),
+      // bottomNavigationBar: BottomNav(
+      //   currentIndex: 0,
+      //   routeNames: ['/admin', '/my-tickets', '/wallet', ''],
+      //   argumentsPerIndex: [_user, null, _user, _user],
+      // ),
     );
   }
 
