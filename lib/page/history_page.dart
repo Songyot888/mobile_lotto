@@ -54,14 +54,44 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _fetchHistory() async {
     if (_user == null) return;
 
+    // ตรวจสอบ uid ก่อนส่ง
+    final uid = _user?.uid;
+    if (uid == null) {
+      setState(() {
+        _error = "ไม่พบ memberId ของผู้ใช้";
+        _items = [];
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      // NOTE: ถ้า User ของคุณใช้ชื่อฟิลด์อื่น ให้แก้ตรงนี้
-      final req = HistoryBuyReq(memberId: _user!.uid);
+      // แก้ไข: จัดการ uid ให้เป็น int
+      int memberId;
+      if (uid is int) {
+        memberId = uid;
+      } else if (uid is String) {
+        memberId = int.tryParse(uid as String) ?? 0;
+        if (memberId == 0) {
+          setState(() {
+            _error = "รูปแบบ memberId ไม่ถูกต้อง";
+            _items = [];
+          });
+          return;
+        }
+      } else {
+        setState(() {
+          _error = "ประเภทข้อมูล memberId ไม่ถูกต้อง";
+          _items = [];
+        });
+        return;
+      }
+
+      final req = HistoryBuyReq(memberId: memberId);
 
       final resp = await http.post(
         Uri.parse(
@@ -72,17 +102,63 @@ class _HistoryPageState extends State<HistoryPage> {
       );
 
       if (resp.statusCode == 200) {
-        final list = historyBuyResPostFromJson(resp.body);
+        // เพิ่มการตรวจสอบ response body
+        final responseBody = resp.body.trim();
+        if (responseBody.isEmpty) {
+          setState(() {
+            _items = [];
+            _error = null;
+          });
+          return;
+        }
 
-        // จัดเรียงใหม่ (ล่าสุดอยู่บน)
-        list.sort((a, b) => b.dateIso.compareTo(a.dateIso));
+        try {
+          // แปลง JSON เป็น list แล้วกรองเฉพาะรายการที่สมบูรณ์
+          final jsonList = json.decode(responseBody) as List;
+          final List<HistoryBuyResPost> allData = [];
 
-        setState(() {
-          _items = list;
-        });
+          for (var item in jsonList) {
+            try {
+              // ตรวจสอบว่ามีข้อมูลสำคัญหรือไม่
+              if (item != null &&
+                  item is Map<String, dynamic> &&
+                  item['number'] != null &&
+                  item['number'].toString().trim().isNotEmpty) {
+                final historyItem = HistoryBuyResPost.fromJson(item);
+                allData.add(historyItem);
+              }
+            } catch (itemError) {
+              // ข้าม item ที่ parse ไม่ได้
+              print('Skip invalid item: $itemError');
+              continue;
+            }
+          }
+
+          // จัดเรียงใหม่ (ล่าสุดอยู่บน) - ตรวจสอบ null ก่อน
+          allData.sort((a, b) {
+            final dateA = a.dateIso;
+            final dateB = b.dateIso;
+
+            if (dateA == null && dateB == null) return 0;
+            if (dateA == null) return 1;
+            if (dateB == null) return -1;
+
+            return dateB.compareTo(dateA);
+          });
+
+          setState(() {
+            _items = allData;
+          });
+        } catch (parseError) {
+          setState(() {
+            _error = "เกิดข้อผิดพลาดในการแปลงข้อมูล: $parseError";
+            _items = [];
+          });
+        }
       } else {
         setState(() {
-          _error = 'เกิดข้อผิดพลาด (${resp.statusCode}) : ${resp.body}';
+          _error =
+              'เกิดข้อผิดพลาด (${resp.statusCode}) : ${resp.reasonPhrase ?? 'Unknown error'}';
         });
       }
     } catch (e) {
@@ -144,6 +220,11 @@ class _HistoryPageState extends State<HistoryPage> {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
         itemBuilder: (_, i) {
           final it = _items[i];
+
+          // ป้องกัน null values
+          final displayNumber = it.number?.trim() ?? '-';
+          final displayDateTh = it.dateTh?.trim() ?? '—';
+
           return Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
@@ -154,10 +235,10 @@ class _HistoryPageState extends State<HistoryPage> {
                 child: Icon(Icons.confirmation_number),
               ),
               title: Text(
-                "เลข: ${it.number}",
+                "เลข: $displayNumber",
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: Text("งวด: ${it.dateTh}"),
+              subtitle: Text("งวด: $displayDateTh"),
               trailing: Text(
                 _formatShort(it.dateIso),
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -171,7 +252,10 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  String _formatShort(DateTime dt) {
+  String _formatShort(DateTime? dt) {
+    // ป้องกัน null DateTime
+    if (dt == null) return '—';
+
     // รูปแบบย่อเช่น 21/09/25 14:30
     final d = dt.toLocal();
     final two = (int x) => x.toString().padLeft(2, '0');

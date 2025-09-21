@@ -42,7 +42,6 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     if (args is User) {
       _user = args;
     }
-    // ไม่เรียก setState ซ้ำถ้า _bootstrap จะ setState อยู่แล้ว
   }
 
   Future<void> _bootstrap() async {
@@ -64,7 +63,9 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
   }
 
   Future<void> _fetchHistory() async {
-    if (_user?.uid == null) {
+    // เพิ่มการตรวจสอบ uid แบบชัดเจนมากขึ้น
+    final uid = _user?.uid;
+    if (uid == null) {
       setState(() {
         _error = "ไม่พบ memberId ของผู้ใช้";
         _history = [];
@@ -78,7 +79,8 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     });
 
     try {
-      final req = HistoryBuyReq(memberId: _user!.uid);
+      // แก้ไข: cast uid เป็น int (ถ้าแน่ใจว่าเป็น int)
+      final req = HistoryBuyReq(memberId: uid as int);
       final url = Uri.parse(
         "https://lotto-api-production.up.railway.app/api/User/TxnLotto",
       );
@@ -90,19 +92,54 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       );
 
       if (resp.statusCode == 200) {
-        // สมมติ server ส่งเป็น JSON array ตรงกับ HistoryBuyResPost
-        final List<HistoryBuyResPost> data = historyBuyResPostFromJson(
-          resp.body,
-        );
+        // เพิ่มการตรวจสอบ response body
+        final responseBody = resp.body.trim();
+        if (responseBody.isEmpty) {
+          setState(() {
+            _history = [];
+            _error = null;
+          });
+          return;
+        }
 
-        setState(() {
-          _history = data;
-          _error = null;
-        });
+        try {
+          // แปลง JSON เป็น list แล้วกรองเฉพาะรายการที่สมบูรณ์
+          final jsonList = json.decode(responseBody) as List;
+          final List<HistoryBuyResPost> allData = [];
+          
+          for (var item in jsonList) {
+            try {
+              // ตรวจสอบว่ามีข้อมูลสำคัญหรือไม่
+              if (item != null && 
+                  item is Map<String, dynamic> && 
+                  item['number'] != null && 
+                  item['number'].toString().trim().isNotEmpty) {
+                
+                final historyItem = HistoryBuyResPost.fromJson(item);
+                allData.add(historyItem);
+              }
+            } catch (itemError) {
+              // ข้าม item ที่ parse ไม่ได้
+              print('Skip invalid item: $itemError');
+              continue;
+            }
+          }
+          
+          final List<HistoryBuyResPost> data = allData;
+
+          setState(() {
+            _history = data;
+            _error = null;
+          });
+        } catch (parseError) {
+          setState(() {
+            _error = "เกิดข้อผิดพลาดในการแปลงข้อมูล: $parseError";
+            _history = [];
+          });
+        }
       } else {
         setState(() {
-          _error =
-              "เรียก API ล้มเหลว (${resp.statusCode}) : ${resp.reasonPhrase ?? ''}";
+          _error = "เรียก API ล้มเหลว (${resp.statusCode}) : ${resp.reasonPhrase ?? 'Unknown error'}";
           _history = [];
         });
       }
@@ -186,26 +223,37 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                       ),
                     ),
                   ] else if (_error != null) ...[
-                    _ErrorBanner(message: _error!, onRetry: _fetchHistory),
+                    _ErrorBanner(
+                      message: _error!,
+                      onRetry: _fetchHistory, // แก้ไข: ไม่ต้องใช้ closure
+                    ),
                   ] else if (_history.isEmpty) ...[
                     const _EmptyState(),
                   ] else ...[
-                    // แปลง history เป็นการ์ด
+                    // แปลง history เป็นการ์ด (กัน null ทุกช่อง)
                     Column(
-                      children: _history
-                          .map(
-                            (h) => _TicketCard(
-                              number: h.number,
-                              // ถ้ามีราคาในอนาคต ค่อยเพิ่ม field ใน response
-                              // ตอนนี้แสดงเลข + วันที่
-                              subtitleRight: h.dateTh.isNotEmpty
-                                  ? h.dateTh
-                                  : h.dateIso.toIso8601String(),
-                              status:
-                                  "สำเร็จ", // สมมุติสถานะ หากมีคอลัมน์จริงให้ใช้จาก API
-                            ),
-                          )
-                          .toList(),
+                      children: _history.map((h) {
+                        // ปรับปรุงการจัดการ null สำหรับ number
+                        final String displayNumber = h.number?.trim() ?? '-';
+
+                        // ปรับปรุงการจัดการ null สำหรับ date
+                        String displayDate = '—';
+                        if (h.dateTh != null && h.dateTh!.trim().isNotEmpty) {
+                          displayDate = h.dateTh!.trim();
+                        } else if (h.dateIso != null) {
+                          try {
+                            displayDate = h.dateIso!.toIso8601String();
+                          } catch (e) {
+                            displayDate = '—';
+                          }
+                        }
+
+                        return _TicketCard(
+                          number: displayNumber,
+                          subtitleRight: displayDate,
+                          status: "สำเร็จ",
+                        );
+                      }).toList(),
                     ),
                   ],
                 ],
@@ -325,14 +373,14 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _TicketCard extends StatelessWidget {
-  final String number;
+  final String number; // แก้ไข: ไม่ยอมรับ null แล้ว
   final String status;
-  final String? subtitleRight; // ใช้แสดงวันที่ไทยหรือ ISO
+  final String subtitleRight; // แก้ไข: ไม่ยอมรับ null แล้ว
 
   const _TicketCard({
     required this.number,
     required this.status,
-    this.subtitleRight,
+    required this.subtitleRight, // แก้ไข: required แล้ว
   });
 
   @override
@@ -353,7 +401,7 @@ class _TicketCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE082), // เหลืองอ่อน
+                color: const Color(0xFFFFE082),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -375,11 +423,10 @@ class _TicketCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (subtitleRight != null && subtitleRight!.isNotEmpty)
-                Text(
-                  subtitleRight!,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
-                ),
+              Text(
+                subtitleRight,
+                style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+              ),
               const SizedBox(height: 10),
               Text(
                 status,
