@@ -388,9 +388,13 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
     return buf.toString();
   }
 
+
+
+
   @override
   Widget build(BuildContext context) {
     final balance = widget.user?.balance?.toDouble() ?? 9999.99;
+
 
     return Scaffold(
       body: Container(
@@ -410,8 +414,10 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Row(
                   children: [
+                    
                     IconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new,
