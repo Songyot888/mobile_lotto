@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/page/addlottery_page.dart';
 import 'package:mobile_lotto/page/admin_page.dart';
+import 'package:mobile_lotto/page/all_lotto_list_page.dart';
 import 'package:mobile_lotto/page/buy_lotto_page.dart';
 import 'package:mobile_lotto/page/check_lottery_page.dart';
 import 'package:mobile_lotto/page/editprofile_page.dart';
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
         '/addlottery': (context) => const AddlotteryPage(),
         '/search': (context) => const SearchNumberPage(),
         '/random-draw': (context) => const RandomDrawPage(),
+        '/all': (context) => const AllLottoListPage(),
       },
     );
   }

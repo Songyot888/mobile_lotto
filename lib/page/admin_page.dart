@@ -183,9 +183,7 @@ class _AdminPageState extends State<AdminPage> {
                     buildMenuCard(
                       Icons.new_releases,
                       "ล็อตเตอรี่ทั้งหมด",
-                      onTap: () {
-                        // TODO: ไปหน้ารายการล่าสุด
-                      },
+                      onTap: () => Navigator.pushNamed(context, '/all'),
                     ),
                   ],
                 ),
