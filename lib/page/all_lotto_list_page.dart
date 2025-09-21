@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:mobile_lotto/page/buttom_nav.dart';
-import 'package:mobile_lotto/model/response/all_lottery_res_get.dart';
+import 'package:mobile_lotto/model/response/all_res.dart';
 
 class AllLottoListPage extends StatefulWidget {
   const AllLottoListPage({super.key});
@@ -16,66 +16,79 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
   int _tab = 0; // 0 = ยังไม่ขาย, 1 = ขายแล้ว
   bool _loading = false;
 
-  List<AllLotteryResGet> _unsold = [];
-  List<AllLotteryResGet> _sold = [];
+  List<AllLotteryResGet> _allLotteries = [];
+
+  // แยกรายการตาม status
+  List<AllLotteryResGet> get _unsoldLotteries {
+    return _allLotteries.where((lottery) => lottery.status == true).toList();
+  }
+
+  List<AllLotteryResGet> get _soldLotteries {
+    return _allLotteries.where((lottery) => lottery.status == false).toList();
+  }
 
   @override
   void initState() {
     super.initState();
-    _fetchAll();
+    _fetchAllLotteries();
   }
 
-  Future<void> _fetchAll() async {
+  Future<void> _fetchAllLotteries() async {
     setState(() => _loading = true);
     try {
-      // ยังไม่ขาย
-      final r1 = await http.get(
+      // ดึงข้อมูลสลากทั้งหมดจาก endpoint ใหม่
+      final response = await http.get(
         Uri.parse(
-          "https://lotto-api-production.up.railway.app/api/User/unsold",
+          "https://lotto-api-production.up.railway.app/api/User/allLotto",
         ),
         headers: {"Content-Type": "application/json; charset=utf-8"},
       );
-      if (r1.statusCode == 200) {
-        _unsold = allLotteryResGetFromJson(r1.body);
-      } else {
-        log("unsold ${r1.statusCode}");
-      }
 
-      // ขายแล้ว (ถ้า endpoint ใช้ชื่ออื่น ให้เปลี่ยนตาม backend)
-      try {
-        final r2 = await http.get(
-          Uri.parse(
-            "https://lotto-api-production.up.railway.app/api/User/sold",
-          ),
-          headers: {"Content-Type": "application/json; charset=utf-8"},
-        );
-        if (r2.statusCode == 200) {
-          _sold = allLotteryResGetFromJson(r2.body);
-        } else {
-          log("sold ${r2.statusCode}");
+      if (response.statusCode == 200) {
+        final allData = allLotteryResGetFromJson(response.body);
+
+        if (mounted) {
+          setState(() {
+            _allLotteries = allData;
+          });
+
+          log("Total lotteries: ${_allLotteries.length}");
+          log("Unsold (status=true): ${_unsoldLotteries.length}");
+          log("Sold (status=false): ${_soldLotteries.length}");
         }
-      } catch (e) {
-        // ถ้า backend ยังไม่มี endpoint นี้ จะปล่อย sold เป็นค่าว่าง
-        log("fetch sold error $e");
+      } else {
+        log("API Error: ${response.statusCode}");
+        if (mounted) {
+          _showErrorMessage("ไม่สามารถดึงข้อมูลได้ในขณะนี้");
+        }
       }
     } catch (e, st) {
-      log("fetch all error", error: e, stackTrace: st);
+      log("Fetch error", error: e, stackTrace: st);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("โหลดข้อมูลไม่สำเร็จ"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorMessage("เกิดข้อผิดพลาดในการเชื่อมต่อ");
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _refreshData() async {
+    await _fetchAllLotteries();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final list = _tab == 0 ? _unsold : _sold;
+    final currentList = _tab == 0 ? _unsoldLotteries : _soldLotteries;
 
     return Scaffold(
       body: Container(
@@ -117,6 +130,11 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
                       ),
                     ),
                     const Spacer(),
+                    // ปุ่ม Refresh
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      onPressed: _loading ? null : _refreshData,
+                    ),
                   ],
                 ),
               ),
@@ -129,9 +147,9 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
                 ),
                 child: Row(
                   children: [
-                    _tabChip("ยังไม่ขาย", 0),
+                    _buildTabChip("ยังไม่ขาย (${_unsoldLotteries.length})", 0),
                     const SizedBox(width: 10),
-                    _tabChip("ขายแล้ว", 1),
+                    _buildTabChip("ขายแล้ว (${_soldLotteries.length})", 1),
                   ],
                 ),
               ),
@@ -140,22 +158,69 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
               Expanded(
                 child: _loading
                     ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : list.isEmpty
-                    ? const Center(
-                        child: Text(
-                          "ไม่มีข้อมูล",
-                          style: TextStyle(color: Colors.white70),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Colors.white),
+                            SizedBox(height: 16),
+                            Text(
+                              "กำลังโหลดข้อมูล...",
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (_, i) => _lottoCard(
-                          list[i].number.toString(),
-                          isSold: _tab == 1,
+                    : currentList.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _tab == 0 ? Icons.inbox : Icons.check_circle,
+                              color: Colors.white54,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _tab == 0
+                                  ? "ไม่มีสลากที่ยังไม่ขาย"
+                                  : "ไม่มีสลากที่ขายแล้ว",
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: _refreshData,
+                              icon: const Icon(
+                                Icons.refresh,
+                                color: Colors.white70,
+                              ),
+                              label: const Text(
+                                "รีเฟรชข้อมูล",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _refreshData,
+                        backgroundColor: Colors.white,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          itemCount: currentList.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, i) {
+                            final lottery = currentList[i];
+                            return _buildLottoCard(
+                              lottery.number?.toString() ?? "------",
+                              (lottery.price ?? 100).toInt(),
+                              isSold: lottery.status == 0,
+                            );
+                          },
                         ),
                       ),
               ),
@@ -163,30 +228,25 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
           ),
         ),
       ),
-
-      bottomNavigationBar: BottomNav(
-        currentIndex: 0,
-        routeNames: const ['/home', '/buy', '/wallet', '/member'],
-      ),
     );
   }
 
-  Widget _tabChip(String label, int idx) {
-    final active = _tab == idx;
+  Widget _buildTabChip(String label, int index) {
+    final isActive = _tab == index;
     return InkWell(
-      onTap: () => setState(() => _tab = idx),
+      onTap: () => setState(() => _tab = index),
       borderRadius: BorderRadius.circular(24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.white.withOpacity(0.18),
+          color: isActive ? Colors.white : Colors.white.withOpacity(0.18),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white, width: 1),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? const Color(0xFF006064) : Colors.white,
+            color: isActive ? const Color(0xFF006064) : Colors.white,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -194,7 +254,7 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
     );
   }
 
-  Widget _lottoCard(String number, {bool isSold = false}) {
+  Widget _buildLottoCard(String number, int price, {bool isSold = false}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -204,43 +264,83 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
       ),
       child: Row(
         children: [
+          // หมายเลขสลาก
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE082),
+                color: isSold
+                    ? Colors.grey.withOpacity(0.6)
+                    : const Color(0xFFFFE082),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
                   number,
-                  style: const TextStyle(
+                  style: TextStyle(
                     letterSpacing: 4,
                     fontWeight: FontWeight.w700,
                     fontSize: 18,
-                    color: Colors.black87,
+                    color: isSold ? Colors.white70 : Colors.black87,
                   ),
                 ),
               ),
             ),
           ),
-          if (isSold) ...[
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00C4BA),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                "ขายแล้ว",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+
+          const SizedBox(width: 12),
+
+          // ราคาและสถานะ
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (isSold) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    "ขายแล้ว",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00C4BA),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    "วางขาย",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                "$price บาท",
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );

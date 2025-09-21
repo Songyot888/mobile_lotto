@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:math' hide log;
 import 'package:flutter/material.dart';
@@ -5,9 +6,16 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
 
+import 'package:mobile_lotto/model/request/buy_lotterry_req.dart';
+import 'package:mobile_lotto/model/response/buy_lottery_res_post.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/model/response/all_lottery_res_get.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
+
+// API Endpoints
+const _unsoldEndpoint =
+    "https://lotto-api-production.up.railway.app/api/User/unsold";
+const _buyEndpoint = "https://lotto-api-production.up.railway.app/api/User/buy";
 
 class SearchNumberPage extends StatefulWidget {
   final User? user;
@@ -28,6 +36,13 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
   bool _loading = false;
   List<AllLotteryResGet> _all = [];
   List<AllLotteryResGet> _results = [];
+
+  // สำหรับการซื้อ
+  int? _buyingId;
+  double? _walletOverride;
+
+  // หา memberId จากโมเดล User
+  int? get _memberId => _user?.uid;
 
   @override
   void dispose() {
@@ -59,14 +74,13 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
   }
 
   Future<void> _loadFromSession() async {
-    final u = await Session.getUser();
-    if (!mounted) return;
-    if (u != null) {
-      setState(() {
-        _user = u;
-      });
-    } else {
-      setState(() {});
+    try {
+      final u = await Session.getUser();
+      if (mounted && u != null) {
+        setState(() => _user = u);
+      }
+    } catch (e) {
+      log('Error loading user from session: $e');
     }
   }
 
@@ -75,9 +89,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
     try {
       setState(() => _loading = true);
       final res = await http.get(
-        Uri.parse(
-          "https://lotto-api-production.up.railway.app/api/User/unsold",
-        ),
+        Uri.parse(_unsoldEndpoint),
         headers: {"Content-Type": "application/json; charset=utf-8"},
       );
       if (res.statusCode == 200) {
@@ -88,12 +100,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
     } catch (e, st) {
       log("UNSOLD error", error: e, stackTrace: st);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("ดึงข้อมูลเลขไม่สำเร็จ"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar("ดึงข้อมูลเลขไม่สำเร็จ");
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -103,10 +110,15 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
   String shortByMode(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return "-";
-    if (_mode == 0) return s.length >= 3 ? s.substring(0, 3) : s; // 3 ตัวหน้า
-    if (_mode == 1)
-      return s.length >= 3 ? s.substring(s.length - 3) : s; // 3 ตัวหลัง
-    return s.length >= 2 ? s.substring(s.length - 2) : s; // 2 ตัวท้าย
+
+    switch (_mode) {
+      case 0: // 3 ตัวหน้า
+        return s.length >= 3 ? s.substring(0, 3) : s;
+      case 1: // 3 ตัวหลัง
+        return s.length >= 3 ? s.substring(s.length - 3) : s;
+      default: // 2 ตัวท้าย
+        return s.length >= 2 ? s.substring(s.length - 2) : s;
+    }
   }
 
   bool _matchByMode(String full, String query) {
@@ -120,32 +132,178 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
   Future<void> _search() async {
     final s = _numberCtrl.text.trim();
     if (s.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกเลขที่ต้องการค้นหา')),
-      );
+      _showErrorSnackBar('กรุณากรอกเลขที่ต้องการค้นหา');
       return;
     }
+
     await _loadUnsold();
     final filtered = _all
         .where((e) => _matchByMode(e.number.toString(), s))
         .toList();
+
     if (!mounted) return;
     setState(() => _results = filtered);
 
     if (filtered.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('ไม่พบเลขที่ต้องการ')));
+      _showErrorSnackBar('ไม่พบเลขที่ต้องการ');
     }
   }
 
-  // ✅ สุ่มเลขตามโหมดที่เลือก
+  // สุ่มเลขตามโหมดที่เลือก
   void _random() {
     final len = _mode == 2 ? 2 : 3; // โหมด 2 => 2 หลัก, อื่นๆ 3 หลัก
     final rnd = (DateTime.now().microsecondsSinceEpoch % (pow(10, len) as int))
         .toString()
         .padLeft(len, '0');
     setState(() => _numberCtrl.text = rnd);
+  }
+
+  // ซื้อสลากผ่าน API
+  Future<void> _buyLottery(int lotteryId) async {
+    final currentMemberId = _memberId;
+
+    if (currentMemberId == null) {
+      _showErrorSnackBar("กรุณาเข้าสู่ระบบก่อนทำรายการ");
+      return;
+    }
+
+    setState(() => _buyingId = lotteryId);
+
+    try {
+      final req = BuyLotterryReq(
+        memberId: currentMemberId,
+        lotteryId: lotteryId,
+      );
+
+      final response = await http.post(
+        Uri.parse(_buyEndpoint),
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Accept": "application/json",
+        },
+        body: json.encode(req.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final data = BuyLotteryResPost.fromJson(json.decode(response.body));
+
+        setState(() {
+          _walletOverride = data.wallet?.toDouble();
+          // ลบรายการที่ซื้อแล้วออกจากลิสต์
+          _results.removeWhere((x) => x.lid == lotteryId);
+          _all.removeWhere((x) => x.lid == lotteryId);
+        });
+
+        // แสดงข้อความสำเร็จ
+        await _showSuccessDialog(data);
+      } else {
+        String errorMessage = await _parseErrorMessage(response);
+        _showErrorSnackBar(errorMessage);
+      }
+    } catch (e) {
+      log("Error buying lottery: $e");
+      _showErrorSnackBar(_getNetworkErrorMessage(e));
+    } finally {
+      if (mounted) {
+        setState(() => _buyingId = null);
+      }
+    }
+  }
+
+  Future<String> _parseErrorMessage(http.Response response) async {
+    try {
+      final jsonResponse = json.decode(response.body);
+      if (jsonResponse is Map<String, dynamic>) {
+        return jsonResponse["message"]?.toString() ??
+            jsonResponse["error"]?.toString() ??
+            "การซื้อไม่สำเร็จ";
+      }
+    } catch (_) {}
+
+    switch (response.statusCode) {
+      case 400:
+        return "ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
+      case 401:
+        return "ไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบใหม่";
+      case 404:
+        return "ไม่พบข้อมูลที่ต้องการ";
+      case 500:
+        return "เซิร์ฟเวอร์มีปัญหา กรุณาลองใหม่อีกครั้ง";
+      default:
+        return "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+    }
+  }
+
+  String _getNetworkErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('socketexception')) {
+      return "ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้";
+    } else if (errorString.contains('timeoutexception')) {
+      return "การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง";
+    } else if (errorString.contains('formatexception')) {
+      return "ข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง";
+    } else {
+      return "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง";
+    }
+  }
+
+  Future<void> _showSuccessDialog(BuyLotteryResPost data) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 24),
+            SizedBox(width: 8),
+            Text("ซื้อสำเร็จ"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("คำสั่งซื้อ: #${data.orderId}"),
+            const SizedBox(height: 4),
+            Text("เลขสลาก: ${data.number}"),
+            const SizedBox(height: 4),
+            Text("ราคา: ${data.price} บาท"),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "ยอดเงินคงเหลือ: ${data.wallet} บาท",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("ตกลง"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Widget _modePill(String label, int index) {
@@ -176,45 +334,9 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
     );
   }
 
-  // ✅ ซื้อเลข (หักเครดิต 100 และบันทึกผู้ใช้ลง Session)
-  Future<void> _buyNumber({
-    required String rawNumber,
-    required String shortNumber,
-    required String modeName,
-    int price = 100,
-  }) async {
-    if (_user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("กรุณาเข้าสู่ระบบก่อนทำรายการ")),
-      );
-      return;
-    }
-    final current = _user!.balance ?? 0;
-    if (current < price) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("เครดิตไม่เพียงพอ"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // TODO: ถ้าต้องการเก็บรายการซื้อลง "หวยของฉัน" ให้เรียกเมธอด Session อื่นๆ ตามที่เฮียมี
-    // await Session.appendMyTicket({...});
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("ซื้อ $modeName: $shortNumber จากเลข $rawNumber สำเร็จ"),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final balance = _user?.balance?.toDouble() ?? 0.0;
+    final balance = _walletOverride ?? _user?.balance?.toDouble() ?? 0.0;
 
     // จำกัดความยาว input ตามโหมด
     final int maxLen = _mode == 2 ? 2 : 3;
@@ -327,6 +449,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
                                 width: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
                               )
                             : const Text(
@@ -369,20 +492,22 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
                   ),
                   const SizedBox(height: 10),
                   Column(
-                    children: _results.map((e) {
-                      final raw = e.number.toString();
-                      final short = shortByMode(raw);
+                    children: _results.map((lottery) {
+                      final rawNumber = lottery.number?.toString() ?? "";
+                      final shortNumber = shortByMode(rawNumber);
                       final modeName = _modes[_mode];
+                      final lotteryId = lottery.lid;
+                      final displayPrice = lottery.price?.toString() ?? "100";
+
                       return _ResultCard(
-                        rawNumber: raw,
-                        shortNumber: short,
+                        rawNumber: rawNumber,
+                        shortNumber: shortNumber,
                         modeName: modeName,
-                        onBuy: () => _buyNumber(
-                          rawNumber: raw,
-                          shortNumber: short,
-                          modeName: modeName,
-                          price: 100,
-                        ),
+                        priceText: "$displayPrice บาท",
+                        isBusy: _buyingId == lotteryId,
+                        onBuy: lotteryId != null
+                            ? () => _buyLottery(lotteryId)
+                            : null,
                       );
                     }).toList(),
                   ),
@@ -418,6 +543,7 @@ class _BalancePill extends StatelessWidget {
         border: Border.all(color: Colors.white70, width: 1),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
             Icons.account_balance_wallet,
@@ -442,13 +568,17 @@ class _ResultCard extends StatelessWidget {
   final String rawNumber;
   final String shortNumber;
   final String modeName;
-  final VoidCallback onBuy; // ✅ callback ซื้อ
+  final String priceText;
+  final bool isBusy;
+  final VoidCallback? onBuy;
 
   const _ResultCard({
     required this.rawNumber,
     required this.shortNumber,
     required this.modeName,
     required this.onBuy,
+    this.isBusy = false,
+    this.priceText = "100 บาท",
   });
 
   @override
@@ -478,7 +608,7 @@ class _ResultCard extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      rawNumber,
+                      rawNumber.isEmpty ? "------" : rawNumber,
                       style: const TextStyle(
                         letterSpacing: 4,
                         fontWeight: FontWeight.w700,
@@ -514,14 +644,15 @@ class _ResultCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // ปุ่มซื้อเลย
+          // ปุ่มซื้อ
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton(
-                onPressed: onBuy,
+                onPressed: isBusy ? null : onBuy,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00C4BA),
+                  disabledBackgroundColor: Colors.grey,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -531,16 +662,25 @@ class _ResultCard extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  "ซื้อเลย",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: isBusy
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        "ซื้อเลย",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               const SizedBox(height: 6),
-              const Text("100 บาท", style: TextStyle(color: Colors.white70)),
+              Text(priceText, style: const TextStyle(color: Colors.white70)),
             ],
           ),
         ],
