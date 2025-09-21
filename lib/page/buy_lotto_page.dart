@@ -196,7 +196,36 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                // ✅ ปุ่มค้นหาเลข ไปหน้า SearchNumberPage
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/search', arguments: _user);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white70, width: 1.5),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: const Icon(Icons.search, size: 18),
+                    label: const Text(
+                      "ค้นหาเลข",
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
                 const Text(
                   "เลขแนะนำประจำวัน\nสลากกินแบ่งรัฐบาล",
                   style: TextStyle(
@@ -310,7 +339,7 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 🔸 เลขเต็ม
+          // 🔸 เลขเต็ม + ป้ายโหมดเล็ก
           Expanded(
             child: Stack(
               children: [
@@ -336,7 +365,6 @@ class _SuggestionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // 🔸 ป้ายโหมด
                 Positioned(
                   right: 8,
                   top: 8,
@@ -354,7 +382,7 @@ class _SuggestionCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 10, // ✅ ลดขนาดฟอนต์ลงจาก 12 → 10
+                        fontSize: 10, // ขนาดเล็กลงตามที่ขอ
                         letterSpacing: 0.5,
                       ),
                     ),
