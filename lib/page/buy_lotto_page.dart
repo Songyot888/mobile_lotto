@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
@@ -20,11 +18,15 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
   User? _user;
   List<AllLotteryResGet> allLotteryresget = [];
 
+  // ✅ โหมดที่เลือก: 0=3ตัวหน้า, 1=3ตัวหลัง, 2=2ตัว
+  int _mode = 0;
+  final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
+
   @override
   void initState() {
     super.initState();
     _loadFromSession();
-    _all(); // เรียก API ตัวอย่าง
+    _all();
   }
 
   @override
@@ -57,23 +59,15 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
         ),
         headers: {"Content-Type": "application/json; charset=utf-8"},
       );
-
       log("ALL status: ${res.statusCode}");
-
-      // ✅ เพิ่มการตรวจสอบ status code ตรงนี้
       if (res.statusCode == 200) {
-        // ถ้าสำเร็จ (status 200 OK) ถึงจะทำการแปลงข้อมูล
         log("ALL body  : ${res.body}");
         final parsed = allLotteryResGetFromJson(res.body);
-
         if (!mounted) return;
         setState(() {
           allLotteryresget = parsed;
         });
       } else {
-        // ถ้าไม่สำเร็จ (เช่น 500, 404, etc.)
-        // ให้แสดงข้อความแจ้งเตือนผู้ใช้
-        log("API Error with status: ${res.statusCode}");
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -82,9 +76,8 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
           ),
         );
       }
-    } catch (e, stackTrace) {
-      // Catch จะทำงานเมื่อเกิดปัญหาอื่นๆ เช่น ไม่มีอินเทอร์เน็ต หรือ FormatException
-      log("Error on _all()", error: e, stackTrace: stackTrace);
+    } catch (e, st) {
+      log("Error on _all()", error: e, stackTrace: st);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -95,17 +88,54 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
     }
   }
 
-  // ไม่ต้องมีโหมดแล้ว เพราะให้โชว์สีคงที่ตลอด
-  final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
+  // ✅ คืนเลขตามโหมดที่เลือก
+  String shortByMode(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return "-";
+    if (_mode == 0) {
+      // 3 ตัวหน้า
+      return s.length >= 3 ? s.substring(0, 3) : s;
+    } else if (_mode == 1) {
+      // 3 ตัวหลัง
+      return s.length >= 3 ? s.substring(s.length - 3) : s;
+    } else {
+      // 2 ตัวท้าย
+      return s.length >= 2 ? s.substring(s.length - 2) : s;
+    }
+  }
+
+  // ✅ ปุ่มโหมด
+  Widget _modePill(String label, int index) {
+    final active = _mode == index;
+    return InkWell(
+      onTap: () => setState(() => _mode = index),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.white.withOpacity(0.18),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white, width: 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? const Color(0xFF006064) : Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final balance = widget.user?.balance?.toDouble() ?? 9999.99;
+    final balance = _user?.balance?.toDouble() ?? 9999.99;
 
     return Scaffold(
       body: Container(
-        width: double.infinity, // ✅ เต็มความกว้าง
-        height: double.infinity, // ✅ เต็มความสูง
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -120,7 +150,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // แถวบน: Back + Title + Balance
+                // Header
                 Row(
                   children: [
                     IconButton(
@@ -141,13 +171,12 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                         ),
                       ),
                     ),
-                    _BalancePill(amount: _user?.balance ?? 0),
+                    _BalancePill(amount: balance),
                   ],
                 ),
 
                 const SizedBox(height: 18),
 
-                // หัวข้อ
                 const Text(
                   "ค้นหาเลขเด็ด\nงวดวันที่ 13 มิ.ย 2565",
                   style: TextStyle(
@@ -158,29 +187,13 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // ✅ ปุ่มโหมด "โชว์สีตลอด" (ไม่โต้ตอบ)
+                // ✅ ปุ่มโหมด (กดสลับได้)
                 Wrap(
                   spacing: 10,
-                  children: _modes.map((label) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white, // โชว์เป็น selected ตลอด
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white, width: 1),
-                      ),
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: Color(0xFF006064), // สีตัวอักษร teal เข้ม
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: List.generate(
+                    _modes.length,
+                    (i) => _modePill(_modes[i], i),
+                  ),
                 ),
 
                 const SizedBox(height: 20),
@@ -192,19 +205,32 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                     height: 1.4,
                   ),
                 ),
+                const SizedBox(height: 8),
+
+                // ✅ จำนวนทั้งหมด
+                Text(
+                  "พบทั้งหมด ${allLotteryresget.length} รายการ",
+                  style: const TextStyle(color: Colors.white70),
+                ),
                 const SizedBox(height: 12),
 
-                // การ์ดเลขแนะนำ
+                // ✅ การ์ดเลขแนะนำ
                 Column(
                   children: allLotteryresget.map((e) {
-                    final display = (e.number)
-                        .toString(); // กันไว้เป็น String เสมอ
+                    final raw = (e.number).toString();
+                    final short = shortByMode(raw);
+                    final modeName = _modes[_mode];
+
                     return _SuggestionCard(
-                      number: display.isEmpty ? '-' : display,
+                      rawNumber: raw,
+                      shortNumber: short,
+                      modeName: modeName,
                       onBuy: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('กดซื้อเลข $display (ตัวอย่าง)'),
+                            content: Text(
+                              'กดซื้อ $modeName: $short (จากเลข $raw)',
+                            ),
                           ),
                         );
                       },
@@ -217,7 +243,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
         ),
       ),
 
-      // BottomNav: ตั้ง index = 1 (แท็บ "หวยของฉัน")
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
@@ -261,9 +286,17 @@ class _BalancePill extends StatelessWidget {
 }
 
 class _SuggestionCard extends StatelessWidget {
-  final String number;
+  final String rawNumber; // เลขเต็มจาก API
+  final String shortNumber; // เลขตามโหมด
+  final String modeName; // 3ตัวหน้า / 3ตัวหลัง / 2ตัว
   final VoidCallback onBuy;
-  const _SuggestionCard({required this.number, required this.onBuy});
+
+  const _SuggestionCard({
+    required this.rawNumber,
+    required this.shortNumber,
+    required this.modeName,
+    required this.onBuy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -277,38 +310,70 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // กล่องเลข
+          // 🔸 เลขเต็ม
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFE082), // เหลืองอ่อนคล้ายภาพ
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  number,
-                  style: const TextStyle(
-                    letterSpacing: 4,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: Colors.black87,
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE082),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      rawNumber,
+                      style: const TextStyle(
+                        letterSpacing: 4,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // 🔸 ป้ายโหมด
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C4BA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "$modeName: $shortNumber",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10, // ✅ ลดขนาดฟอนต์ลงจาก 12 → 10
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+
           const SizedBox(width: 12),
-          // ปุ่มซื้อเลย
+
+          // 🔸 ปุ่มซื้อ
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton(
                 onPressed: onBuy,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(
-                    0xFF00C4BA,
-                  ), // ✅ เขียวอมฟ้าตามภาพ
+                  backgroundColor: const Color(0xFF00C4BA),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
