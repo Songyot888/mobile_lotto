@@ -377,6 +377,7 @@ class _TicketCard extends StatelessWidget {
   final String status;
   final String subtitleRight; // แก้ไข: ไม่ยอมรับ null แล้ว
 
+
   const _TicketCard({
     required this.number,
     required this.status,
@@ -396,6 +397,7 @@ class _TicketCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+
           // กล่องเลขเหลือง
           Expanded(
             child: Container(
@@ -418,6 +420,7 @@ class _TicketCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+
 
           // วันที่/สถานะ
           Column(
