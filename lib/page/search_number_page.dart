@@ -1,5 +1,10 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:mobile_lotto/model/response/login_res_post.dart';
+import 'package:mobile_lotto/model/response/all_lottery_res_get.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class SearchNumberPage extends StatefulWidget {
@@ -13,15 +18,73 @@ class SearchNumberPage extends StatefulWidget {
 class _SearchNumberPageState extends State<SearchNumberPage> {
   final TextEditingController _numberCtrl = TextEditingController();
 
+  int _mode = 0; // 0=3ตัวหน้า, 1=3ตัวหลัง, 2=2ตัว
+  final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
+
+  bool _loading = false;
+  List<AllLotteryResGet> _all = [];
+  List<AllLotteryResGet> _results = [];
+
   @override
   void dispose() {
     _numberCtrl.dispose();
     super.dispose();
   }
 
-  void _clear() => setState(() => _numberCtrl.clear());
+  void _clear() {
+    setState(() {
+      _numberCtrl.clear();
+      _results = [];
+    });
+  }
 
-  void _search() {
+  Future<void> _loadUnsold() async {
+    if (_all.isNotEmpty) return;
+    try {
+      setState(() => _loading = true);
+      final res = await http.get(
+        Uri.parse(
+          "https://lotto-api-production.up.railway.app/api/User/unsold",
+        ),
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+      );
+      if (res.statusCode == 200) {
+        _all = allLotteryResGetFromJson(res.body);
+      } else {
+        throw Exception("API ${res.statusCode}");
+      }
+    } catch (e, st) {
+      log("UNSOLD error", error: e, stackTrace: st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("ดึงข้อมูลเลขไม่สำเร็จ"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String shortByMode(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return "-";
+    if (_mode == 0) return s.length >= 3 ? s.substring(0, 3) : s;
+    if (_mode == 1) return s.length >= 3 ? s.substring(s.length - 3) : s;
+    return s.length >= 2 ? s.substring(s.length - 2) : s;
+  }
+
+  bool _matchByMode(String full, String query) {
+    final q = query.trim();
+    if (q.isEmpty) return true;
+    if (_mode == 0) return full.startsWith(q);
+    if (_mode == 1) return full.endsWith(q);
+    return full.endsWith(q);
+  }
+
+  Future<void> _search() async {
     final s = _numberCtrl.text.trim();
     if (s.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -29,31 +92,69 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
       );
       return;
     }
-    // TODO: ต่อ API ค้นหาเลขจริง
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('ค้นหาเลข: $s (ตัวอย่าง)')),
-    );
+    await _loadUnsold();
+    final filtered = _all
+        .where((e) => _matchByMode(e.number.toString(), s))
+        .toList();
+    if (!mounted) return;
+    setState(() => _results = filtered);
+
+    if (filtered.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ไม่พบเลขที่ต้องการ')));
+    }
   }
 
   void _random() {
-    // สุ่มเลข 6 หลักตัวอย่าง
     final now = DateTime.now().microsecondsSinceEpoch;
     final rnd = (now % 1000000).toString().padLeft(6, '0');
     setState(() => _numberCtrl.text = rnd);
   }
 
+  Widget _modePill(String label, int index) {
+    final active = _mode == index;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _mode = index;
+          _numberCtrl.clear(); // รีเซ็ต input ตามโหมดใหม่
+        });
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.white.withOpacity(0.18),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white, width: 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? const Color(0xFF006064) : Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final balance = widget.user?.balance?.toDouble() ?? 9999.99;
+    final balance = widget.user?.balance?.toDouble() ?? 0.0;
+
+    // ✅ จำกัดความยาว input ตามโหมด
+    int maxLen = _mode == 2 ? 2 : 3;
 
     return Scaffold(
-      // ✅ พื้นหลังเต็มจอ
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xFF006064), Color(0xFF00838F), Color(0xFF006064)],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -68,14 +169,21 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 6),
                     const Expanded(
                       child: Text(
-                        "ซื้อสลากกินแบ่ง",
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        "ค้นหาเลขเด็ด",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     _BalancePill(amount: balance),
@@ -84,43 +192,37 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 10),
 
-                // หัวข้อ “ค้นหาเลขเด็ด” + ปุ่มล้างค่า
-                Row(
-                  children: [
-                    const Text(
-                      "ค้นหาเลขเด็ด\nงวดวันที่ 13 มิ.ย 2565",
-                      style: TextStyle(color: Colors.white, fontSize: 16, height: 1.4),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: _clear,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                      ),
-                      child: const Text("ล้างค่า"),
-                    ),
-                  ],
+                Wrap(
+                  spacing: 10,
+                  children: List.generate(
+                    _modes.length,
+                    (i) => _modePill(_modes[i], i),
+                  ),
                 ),
 
                 const SizedBox(height: 12),
 
-                // กล่องกรอกเลข (สไตล์แคปซูล)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF69D1DA), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFF69D1DA),
+                      width: 2,
+                    ),
                   ),
                   child: TextField(
                     controller: _numberCtrl,
+                    inputFormatters: [LengthLimitingTextInputFormatter(maxLen)],
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: "พิมพ์เลขที่ต้องการค้นหา",
-                      hintStyle: TextStyle(color: Colors.white70),
+                    decoration: InputDecoration(
+                      hintText: "พิมพ์เลข${_mode == 2 ? " 2 หลัก" : " 3 หลัก"}",
+                      hintStyle: const TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                     ),
                   ),
@@ -128,32 +230,55 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 14),
 
-                // ปุ่มคู่: ค้นหาเลข / สุ่มเลข
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _search,
+                        onPressed: _loading ? null : _search,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white70, width: 1.5),
+                          side: const BorderSide(
+                            color: Colors.white70,
+                            width: 1.5,
+                          ),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text("ค้นหาเลข", style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                "ค้นหาเลข",
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _random,
+                        onPressed: _loading ? null : _random,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white70, width: 1.5),
+                          side: const BorderSide(
+                            color: Colors.white70,
+                            width: 1.5,
+                          ),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text("สุ่มเลข", style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: const Text(
+                          "สุ่มเลข",
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ],
@@ -161,25 +286,36 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 18),
 
-                // เส้นขอบโค้งด้านล่าง (เพื่อฟีลเหมือน mock)
-                Container(
-                  height: 14,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white24, width: 1.3),
+                if (_results.isNotEmpty) ...[
+                  Text(
+                    "ผลการค้นหา: ${_results.length} รายการ",
+                    style: const TextStyle(color: Colors.white70),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Column(
+                    children: _results.map((e) {
+                      final raw = e.number.toString();
+                      final short = shortByMode(raw);
+                      return _ResultCard(
+                        rawNumber: raw,
+                        shortNumber: short,
+                        modeName: _modes[_mode],
+                      );
+                    }).toList(),
+                  ),
+                ] else
+                  const Text(
+                    "ยังไม่มีผลการค้นหา",
+                    style: TextStyle(color: Colors.white54),
+                  ),
               ],
             ),
           ),
         ),
       ),
-
-      // BottomNav (แท็บหวยของฉัน)
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
-        routeNames: const ['/home', '/buy', '/wallet', '/member'],
+        routeNames: const ['/home', '/myticket', '/wallet', '/member'],
       ),
     );
   }
@@ -200,11 +336,96 @@ class _BalancePill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.account_balance_wallet, color: Colors.white, size: 18),
+          const Icon(
+            Icons.account_balance_wallet,
+            color: Colors.white,
+            size: 18,
+          ),
           const SizedBox(width: 6),
           Text(
             amount.toStringAsFixed(2),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultCard extends StatelessWidget {
+  final String rawNumber;
+  final String shortNumber;
+  final String modeName;
+  const _ResultCard({
+    required this.rawNumber,
+    required this.shortNumber,
+    required this.modeName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white30, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE082),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      rawNumber,
+                      style: const TextStyle(
+                        letterSpacing: 4,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C4BA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "$modeName: $shortNumber",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
