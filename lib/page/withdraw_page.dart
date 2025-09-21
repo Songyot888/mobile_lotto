@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/core/session.dart';
+import 'package:mobile_lotto/model/request/withdraw_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
+import 'package:mobile_lotto/model/response/withdraw_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
+import 'dart:convert';
+import 'dart:developer';
+import 'package:http/http.dart' as http;
 
 class WithdrawPage extends StatefulWidget {
   final User? user;
@@ -19,7 +24,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
   final TextEditingController _amountCtrl = TextEditingController();
 
   bool _loading = false;
-  double get balance => widget.user?.balance ?? 0.0;
+  double get balance => _user?.balance ?? widget.user?.balance ?? 0.0;
 
   @override
   void initState() {
@@ -62,6 +67,60 @@ class _WithdrawPageState extends State<WithdrawPage> {
     }
   }
 
+  Future<void> _doWithdraw() async {
+    if (_loading) return;
+
+    final amountText = _amountCtrl.text.trim();
+    final amount = double.tryParse(amountText.replaceAll(',', ''));
+
+    if (amount == null || amount <= 0) {
+      _showResultDialog('กรุณากรอกจำนวนเงินให้ถูกต้อง', success: false);
+      return;
+    }
+    if (amount > _user!.balance) {
+      _showResultDialog('ยอดเงินไม่พอสำหรับการถอน', success: false);
+      return;
+    }
+    if (_user == null) {
+      _showResultDialog('ไม่พบข้อมูลผู้ใช้', success: false);
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final req = WithdrawReq(memberId: _user!.uid, money: amount.toInt());
+      log(_user!.uid.toString());
+      log(amount.toInt().toString());
+
+      final response = await http.post(
+        Uri.parse(
+          "https://lotto-api-production.up.railway.app/api/User/withdraw",
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(req.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final withdrawRes = withdrawResPostFromJson(jsonEncode(data));
+
+        // อัปเดตยอดใหม่
+        setState(() {
+          _user!.balance = withdrawRes.wallet.toDouble();
+        });
+        await Session.saveUser(_user!);
+        _showResultDialog(withdrawRes.message, success: true);
+      } else {
+        throw Exception('Withdraw failed: ${response.body}');
+      }
+    } catch (e) {
+      _showResultDialog(e.toString(), success: false);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   // Dialog แจ้งผล (สไตล์เดียวกับหน้าอื่น ๆ)
   void _showResultDialog(String msg, {bool success = true}) {
     showDialog(
@@ -101,33 +160,6 @@ class _WithdrawPageState extends State<WithdrawPage> {
       Navigator.of(context).pop(); // ปิด dialog
       if (success) Navigator.pop(context); // สำเร็จ -> กลับหน้าก่อน
     });
-  }
-
-  Future<void> _doWithdraw() async {
-    if (_loading) return;
-
-    final amountText = _amountCtrl.text.trim();
-    final amount = double.tryParse(amountText.replaceAll(',', ''));
-
-    if (amount == null || amount <= 0) {
-      _showResultDialog('กรุณากรอกจำนวนเงินให้ถูกต้อง', success: false);
-      return;
-    }
-    if (amount > balance) {
-      _showResultDialog('ยอดเงินไม่พอสำหรับการถอน', success: false);
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      // TODO: ต่อ API ถอนเงินจริง (ส่ง bankNumber, bankName, amount)
-      await Future.delayed(const Duration(milliseconds: 900));
-      _showResultDialog('ทำรายการสำเร็จ', success: true);
-    } catch (_) {
-      _showResultDialog('เกิดข้อผิดพลาด กรุณาลองใหม่', success: false);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   @override

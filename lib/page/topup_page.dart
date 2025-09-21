@@ -1,7 +1,37 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
+
+class TopupReq {
+  int memberId;
+  int money;
+  TopupReq({required this.memberId, required this.money});
+  Map<String, dynamic> toJson() => {"memberId": memberId, "money": money};
+}
+
+// Topup Response
+class TopupResPost {
+  final String message;
+  final int memberId;
+  final int amount;
+  final int wallet;
+  TopupResPost({
+    required this.message,
+    required this.memberId,
+    required this.amount,
+    required this.wallet,
+  });
+  factory TopupResPost.fromJson(Map<String, dynamic> json) => TopupResPost(
+    message: json["message"],
+    memberId: json["memberId"],
+    amount: json["amount"],
+    wallet: json["wallet"],
+  );
+}
+// ================================================================
 
 class TopUpPage extends StatefulWidget {
   final User? user;
@@ -13,15 +43,15 @@ class TopUpPage extends StatefulWidget {
 
 class _TopUpPageState extends State<TopUpPage> {
   User? _user;
-  double get balance => widget.user?.balance ?? 0.0;
+  double? _walletOverride; // ใช้ override ยอดเงินหลัง topup สำเร็จ
+  double get balance =>
+      _walletOverride ??
+      _user?.balance ??
+      widget.user?.balance ??
+      0.0; // รองรับทุกกรณี
+
   final TextEditingController _amountCtrl = TextEditingController();
   bool _loading = false;
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -72,6 +102,7 @@ class _TopUpPageState extends State<TopUpPage> {
               const SizedBox(height: 12),
               Text(
                 msg,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -94,6 +125,7 @@ class _TopUpPageState extends State<TopUpPage> {
 
   Future<void> _doTopup() async {
     if (_loading) return;
+
     final s = _amountCtrl.text.trim();
     final amount = double.tryParse(s.replaceAll(',', ''));
     if (amount == null || amount <= 0) {
@@ -101,22 +133,86 @@ class _TopUpPageState extends State<TopUpPage> {
       return;
     }
 
+    // หา memberId จาก _user หรือ widget.user
+    final memberId = (_user?.uid ?? widget.user?.uid);
+    if (memberId == null) {
+      _showResultDialog('ไม่พบรหัสสมาชิก (memberId)', success: false);
+      return;
+    }
+
     setState(() => _loading = true);
     try {
-      // TODO: ต่อ API เติมเงินจริง
-      await Future.delayed(const Duration(milliseconds: 900));
-      _showResultDialog('ทำรายการสำเร็จ', success: true);
-    } catch (_) {
-      _showResultDialog('เกิดข้อผิดพลาด กรุณาลองใหม่', success: false);
+      final req = TopupReq(memberId: memberId, money: amount.round());
+      final uri = Uri.parse(
+        "https://lotto-api-production.up.railway.app/api/User/topup",
+      );
+
+      final headers = <String, String>{'Content-Type': 'application/json'};
+
+      final resp = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(req.toJson()),
+      );
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        // พยายามแปลง JSON
+        TopupResPost? data;
+        try {
+          final jsonMap = jsonDecode(resp.body) as Map<String, dynamic>;
+          data = TopupResPost.fromJson(jsonMap);
+        } catch (_) {
+          // บาง API อาจคืนแค่มุมมองข้อความ
+        }
+
+        // อัปเดตยอดเงินบน UI ทันที
+        if (data != null) {
+          setState(() async {
+            _walletOverride = data!.wallet.toDouble();
+            await Session.saveUser(_user!);
+          });
+
+          // ถ้าต้องการบันทึก Session ด้วย (แล้วแต่โครงสร้างโปรเจกต์)
+          // ถ้า User เป็น immutable และมี copyWith:
+          // final updated = _user?.copyWith(balance: data.wallet.toDouble());
+          // await Session.setUser(updated);
+          // setState(() => _user = updated);
+
+          _showResultDialog(
+            data.message.isNotEmpty ? data.message : 'ทำรายการสำเร็จ',
+            success: true,
+          );
+        } else {
+          _showResultDialog('ทำรายการสำเร็จ', success: true);
+        }
+      } else {
+        // แสดง error จาก API ถ้ามี
+        String apiMsg = 'เกิดข้อผิดพลาด (${resp.statusCode})';
+        try {
+          final m = jsonDecode(resp.body);
+          if (m is Map && m['message'] is String) apiMsg = m['message'];
+        } catch (_) {}
+        _showResultDialog(apiMsg, success: false);
+      }
+    } catch (e) {
+      _showResultDialog(
+        'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่',
+        success: false,
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    _BalancePill(amount: _user?.balance ?? 0);
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    // (ลบบรรทัด _BalancePill(...) ที่เคยวางโดดๆ ไว้เหนือ Scaffold ออก — มันไม่มีผล)
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -159,9 +255,7 @@ class _TopUpPageState extends State<TopUpPage> {
                     _BalancePill(amount: balance),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
                 // Card
                 Container(
                   width: double.infinity,
@@ -212,9 +306,7 @@ class _TopUpPageState extends State<TopUpPage> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       // Amount
                       Container(
                         width: double.infinity,
@@ -240,9 +332,7 @@ class _TopUpPageState extends State<TopUpPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       Row(
                         children: [
                           Expanded(
@@ -315,7 +405,6 @@ class _TopUpPageState extends State<TopUpPage> {
           ),
         ),
       ),
-
       bottomNavigationBar: BottomNav(
         currentIndex: 2,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
