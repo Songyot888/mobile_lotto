@@ -1,7 +1,9 @@
 import 'dart:developer';
+import 'dart:math' hide log;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/core/session.dart';
 
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/model/response/all_lottery_res_get.dart';
@@ -17,8 +19,10 @@ class SearchNumberPage extends StatefulWidget {
 
 class _SearchNumberPageState extends State<SearchNumberPage> {
   final TextEditingController _numberCtrl = TextEditingController();
+  User? _user;
 
-  int _mode = 0; // 0=3ตัวหน้า, 1=3ตัวหลัง, 2=2ตัว
+  // 0=3ตัวหน้า, 1=3ตัวหลัง, 2=2ตัว
+  int _mode = 0;
   final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
 
   bool _loading = false;
@@ -36,6 +40,34 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
       _numberCtrl.clear();
       _results = [];
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is User) {
+      _user = args;
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadFromSession() async {
+    final u = await Session.getUser();
+    if (!mounted) return;
+    if (u != null) {
+      setState(() {
+        _user = u;
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   Future<void> _loadUnsold() async {
@@ -71,17 +103,18 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
   String shortByMode(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return "-";
-    if (_mode == 0) return s.length >= 3 ? s.substring(0, 3) : s;
-    if (_mode == 1) return s.length >= 3 ? s.substring(s.length - 3) : s;
-    return s.length >= 2 ? s.substring(s.length - 2) : s;
+    if (_mode == 0) return s.length >= 3 ? s.substring(0, 3) : s; // 3 ตัวหน้า
+    if (_mode == 1)
+      return s.length >= 3 ? s.substring(s.length - 3) : s; // 3 ตัวหลัง
+    return s.length >= 2 ? s.substring(s.length - 2) : s; // 2 ตัวท้าย
   }
 
   bool _matchByMode(String full, String query) {
     final q = query.trim();
     if (q.isEmpty) return true;
-    if (_mode == 0) return full.startsWith(q);
-    if (_mode == 1) return full.endsWith(q);
-    return full.endsWith(q);
+    if (_mode == 0) return full.startsWith(q); // 3 หน้า
+    if (_mode == 1) return full.endsWith(q); // 3 หลัง
+    return full.endsWith(q); // 2 ตัวท้าย
   }
 
   Future<void> _search() async {
@@ -106,9 +139,12 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
     }
   }
 
+  // ✅ สุ่มเลขตามโหมดที่เลือก
   void _random() {
-    final now = DateTime.now().microsecondsSinceEpoch;
-    final rnd = (now % 1000000).toString().padLeft(6, '0');
+    final len = _mode == 2 ? 2 : 3; // โหมด 2 => 2 หลัก, อื่นๆ 3 หลัก
+    final rnd = (DateTime.now().microsecondsSinceEpoch % (pow(10, len) as int))
+        .toString()
+        .padLeft(len, '0');
     setState(() => _numberCtrl.text = rnd);
   }
 
@@ -140,12 +176,48 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
     );
   }
 
+  // ✅ ซื้อเลข (หักเครดิต 100 และบันทึกผู้ใช้ลง Session)
+  Future<void> _buyNumber({
+    required String rawNumber,
+    required String shortNumber,
+    required String modeName,
+    int price = 100,
+  }) async {
+    if (_user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณาเข้าสู่ระบบก่อนทำรายการ")),
+      );
+      return;
+    }
+    final current = _user!.balance ?? 0;
+    if (current < price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("เครดิตไม่เพียงพอ"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // TODO: ถ้าต้องการเก็บรายการซื้อลง "หวยของฉัน" ให้เรียกเมธอด Session อื่นๆ ตามที่เฮียมี
+    // await Session.appendMyTicket({...});
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("ซื้อ $modeName: $shortNumber จากเลข $rawNumber สำเร็จ"),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final balance = widget.user?.balance?.toDouble() ?? 0.0;
+    final balance = _user?.balance?.toDouble() ?? 0.0;
 
-    // ✅ จำกัดความยาว input ตามโหมด
-    int maxLen = _mode == 2 ? 2 : 3;
+    // จำกัดความยาว input ตามโหมด
+    final int maxLen = _mode == 2 ? 2 : 3;
 
     return Scaffold(
       body: Container(
@@ -192,6 +264,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 10),
 
+                // โหมดค้นหา
                 Wrap(
                   spacing: 10,
                   children: List.generate(
@@ -202,6 +275,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 12),
 
+                // ช่องกรอกเลข
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -230,6 +304,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 14),
 
+                // ปุ่มค้นหา / สุ่ม
                 Row(
                   children: [
                     Expanded(
@@ -286,6 +361,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
                 const SizedBox(height: 18),
 
+                // ผลการค้นหา
                 if (_results.isNotEmpty) ...[
                   Text(
                     "ผลการค้นหา: ${_results.length} รายการ",
@@ -296,10 +372,17 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
                     children: _results.map((e) {
                       final raw = e.number.toString();
                       final short = shortByMode(raw);
+                      final modeName = _modes[_mode];
                       return _ResultCard(
                         rawNumber: raw,
                         shortNumber: short,
-                        modeName: _modes[_mode],
+                        modeName: modeName,
+                        onBuy: () => _buyNumber(
+                          rawNumber: raw,
+                          shortNumber: short,
+                          modeName: modeName,
+                          price: 100,
+                        ),
                       );
                     }).toList(),
                   ),
@@ -359,10 +442,13 @@ class _ResultCard extends StatelessWidget {
   final String rawNumber;
   final String shortNumber;
   final String modeName;
+  final VoidCallback onBuy; // ✅ callback ซื้อ
+
   const _ResultCard({
     required this.rawNumber,
     required this.shortNumber,
     required this.modeName,
+    required this.onBuy,
   });
 
   @override
@@ -426,6 +512,36 @@ class _ResultCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 12),
+          // ปุ่มซื้อเลย
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: onBuy,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00C4BA),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "ซื้อเลย",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text("100 บาท", style: TextStyle(color: Colors.white70)),
+            ],
           ),
         ],
       ),
