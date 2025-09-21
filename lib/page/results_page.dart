@@ -1,6 +1,63 @@
+import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:mobile_lotto/page/buttom_nav.dart'; // ใช้ BottomNav เดิมของคุณ
-// ถ้าต้องส่ง user มากับ BottomNav ให้เพิ่มพารามิเตอร์ตามเวอร์ชันที่คุณใช้
+import 'package:http/http.dart' as http;
+import 'package:mobile_lotto/page/buttom_nav.dart';
+
+String _spaced(String s, int padLen) {
+  final clean = (s).replaceAll(RegExp(r'\D'), '').padLeft(padLen, '0');
+  return clean.split('').join(' ');
+}
+
+Future<Map<String, String>> _fetchNumbers() async {
+  final res = await http.get(
+    Uri.parse("https://lotto-api-production.up.railway.app/api/User/result"),
+    headers: {"Content-Type": "application/json; charset=utf-8"},
+  );
+  log("status: ${res.statusCode}");
+  log(res.body);
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw Exception("โหลดผลรางวัลไม่สำเร็จ (${res.statusCode})");
+  }
+
+  final jsonMap = json.decode(res.body) as Map<String, dynamic>;
+  final List list = (jsonMap['result'] as List? ?? []);
+
+  // เตรียมค่าเริ่มต้น
+  String prize1 = "-", prize2 = "-", prize3 = "-", last3 = "-", last2 = "-";
+
+  for (final item in list) {
+    final rate = (item['payoutRate'] as num?)?.toInt();
+    final amount = (item['amount'] ?? "").toString();
+
+    switch (rate) {
+      case 6000000:
+        prize1 = _spaced(amount, 6);
+        break;
+      case 2000000:
+        prize2 = _spaced(amount, 6);
+        break;
+      case 1000000:
+        prize3 = _spaced(amount, 6);
+        break;
+      case 4000:
+        last3 = _spaced(amount, 3);
+        break;
+      case 2000:
+        last2 = _spaced(amount, 2);
+        break;
+    }
+  }
+
+  return {
+    'prize1': prize1,
+    'prize2': prize2,
+    'prize3': prize3,
+    'last3': last3,
+    'last2': last2,
+  };
+}
 
 class ResultsPage extends StatelessWidget {
   const ResultsPage({super.key});
@@ -8,7 +65,6 @@ class ResultsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ พื้นหลังเต็มจอ
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -25,11 +81,13 @@ class ResultsPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               children: [
-                // แถวบน: Back + Title
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 6),
@@ -42,83 +100,143 @@ class ResultsPage extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    // ถ้าต้องการไอคอนอื่น ๆ เพิ่มที่นี่ได้
                     const SizedBox(width: 8),
                   ],
                 ),
-
                 const SizedBox(height: 12),
 
-                // ✅ กล่องผลรางวัลตรงกลาง
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0097A7).withOpacity(0.55), // teal อ่อนโปร่งแสง
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white70, width: 1.4),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    children: const [
-                      Text(
-                        "ผลรางวัลประจำงวด\n3 ก.ย 68",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18.5,
-                          fontWeight: FontWeight.w800,
-                          height: 1.4,
+                // --------- ใช้ FutureBuilder แค่ส่วนตัวเลข ----------
+                FutureBuilder<Map<String, String>>(
+                  future: _fetchNumbers(),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
                         ),
-                      ),
-                      SizedBox(height: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0097A7).withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white70, width: 1.4),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
 
-                      // รางวัลที่ 1
-                      _PrizeSection(
-                        title: "รางวัลที่ 1",
-                        number: "3 5 4 5 8 4",
-                        payout: "เงินรางวัล (6,000,000)",
-                      ),
-                      SizedBox(height: 12),
+                    if (snap.hasError || !snap.hasData) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0097A7).withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white70, width: 1.4),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "โหลดผลรางวัลไม่สำเร็จ",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      );
+                    }
 
-                      // รางวัลที่ 2
-                      _PrizeSection(
-                        title: "รางวัลที่ 2",
-                        number: "1 6 5 4 8 6",
-                        payout: "เงินรางวัล (2,000,000)",
+                    final numbers = snap.data!;
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 18,
                       ),
-                      SizedBox(height: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0097A7).withOpacity(0.55),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white70, width: 1.4),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 12,
+                            offset: Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            "ประกาศผลรางวัล\n",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
 
-                      // รางวัลที่ 3
-                      _PrizeSection(
-                        title: "รางวัลที่ 3",
-                        number: "4 6 8 2 4 7",
-                        payout: "เงินรางวัล (800,000)",
-                      ),
-                      SizedBox(height: 12),
+                          _PrizeSection(
+                            title: "รางวัลที่ 1",
+                            number: numbers['prize1'] ?? "-",
+                            payout: "เงินรางวัล (6,000,000)",
+                          ),
+                          const SizedBox(height: 12),
 
-                      // เลขท้าย 3 ตัว
-                      _PrizeSection(
-                        title: "เลขท้าย 3ตัว",
-                        number: "5 8 4",
-                        payout: "เงินรางวัล (80,000)",
-                      ),
-                      SizedBox(height: 12),
+                          _PrizeSection(
+                            title: "รางวัลที่ 2",
+                            number: numbers['prize2'] ?? "-",
+                            payout: "เงินรางวัล (2,000,000)",
+                          ),
+                          const SizedBox(height: 12),
 
-                      // เลขท้าย 2 ตัว
-                      _PrizeSection(
-                        title: "เลขท้าย 2ตัว",
-                        number: "4 1",
-                        payout: "เงินรางวัล (20,000)",
+                          _PrizeSection(
+                            title: "รางวัลที่ 3",
+                            number: numbers['prize3'] ?? "-",
+                            payout: "เงินรางวัล (1,000,000)",
+                          ),
+                          const SizedBox(height: 12),
+
+                          _PrizeSection(
+                            title: "เลขท้าย 3ตัว",
+                            number: numbers['last3'] ?? "-",
+                            payout: "เงินรางวัล (4,000)",
+                          ),
+                          const SizedBox(height: 12),
+
+                          _PrizeSection(
+                            title: "เลขท้าย 2ตัว",
+                            number: numbers['last2'] ?? "-",
+                            payout: "เงินรางวัล (2,000)",
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 20),
@@ -127,13 +245,9 @@ class ResultsPage extends StatelessWidget {
           ),
         ),
       ),
-
-      // ✅ BottomNav — ตั้ง index ตามที่อยากให้ไฮไลท์ (เช่น 1 = หวยของฉัน หรือ 0 = หน้าแรก)
       bottomNavigationBar: BottomNav(
         currentIndex: 0,
-        routeNames: const ['/home', '/buy', '/wallet', '/member'],
-        // ถ้า BottomNav ของคุณรองรับ argumentsPerIndex:
-        // argumentsPerIndex: [null, null, null, null],
+        routeNames: const ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
   }
@@ -141,7 +255,7 @@ class ResultsPage extends StatelessWidget {
 
 class _PrizeSection extends StatelessWidget {
   final String title;
-  final String number; // แสดงแบบแยกตัวเว้นวรรคเพื่อให้เหมือนดีไซน์
+  final String number;
   final String payout;
 
   const _PrizeSection({
@@ -154,7 +268,6 @@ class _PrizeSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // หัวข้อรางวัล
         Text(
           title,
           style: const TextStyle(
@@ -164,12 +277,10 @@ class _PrizeSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-
-        // แคปซูลเลข
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFE082), // เหลืองอ่อน
+            color: const Color(0xFFFFE082),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -182,10 +293,7 @@ class _PrizeSection extends StatelessWidget {
             ),
           ),
         ),
-
         const SizedBox(height: 6),
-
-        // ข้อความเงินรางวัล
         Text(
           payout,
           style: TextStyle(

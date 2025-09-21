@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-import 'package:mobile_lotto/page/buttom_nav.dart'; // ใช้ BottomNav เดิมของโปรเจกต์
+import 'package:mobile_lotto/model/response/my_lottory_res.dart';
+import 'package:mobile_lotto/page/buttom_nav.dart';
 
 class CheckLotteryPage extends StatefulWidget {
   final User? user;
@@ -13,11 +18,13 @@ class CheckLotteryPage extends StatefulWidget {
 
 class _CheckLotteryPageState extends State<CheckLotteryPage> {
   User? _user;
+  List<MyLottoryRes> mylotto = [];
+  bool _loadedOnce = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFromSession();
+    _bootstrap();
   }
 
   @override
@@ -26,31 +33,366 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is User) {
       _user = args;
+      _loadMylottory();
     }
     setState(() {});
+  }
+
+  Future<void> _bootstrap() async {
+    await _loadFromSession();
+    await _loadMylottory();
   }
 
   Future<void> _loadFromSession() async {
     final u = await Session.getUser();
     if (!mounted) return;
     if (u != null) {
-      setState(() {
-        _user = u;
-      });
+      setState(() => _user = u);
     } else {
       setState(() {});
     }
+  }
+
+  Future<void> _loadMylottory() async {
+    if (!mounted || _loadedOnce || _user?.uid == null) return;
+
+    try {
+      final uri = Uri.parse(
+        'https://lotto-api-production.up.railway.app/api/User/MyLotto/${_user?.uid}',
+      );
+
+      final res = await http.get(uri);
+      log("MyLotto status: ${res.statusCode}");
+      log(res.body);
+
+      if (!mounted) return;
+
+      if (res.statusCode == 200 &&
+          res.body.isNotEmpty &&
+          res.body.trim() != '[]') {
+        final parsed = myLottoryResFromJson(res.body);
+        setState(() {
+          mylotto = parsed;
+          _loadedOnce = true;
+        });
+        log('MyLotto parsed count: ${parsed.length}');
+      } else {
+        setState(() {
+          mylotto = [];
+          _loadedOnce = true;
+        });
+        log('MyLotto: no data for uid=${_user!.uid}');
+      }
+    } catch (e, st) {
+      log('MyLotto error: $e\n$st');
+      if (!mounted) return;
+      setState(() => mylotto = []);
+    }
+  }
+
+  // ---------- ตรวจรางวัล + แสดงผล ----------
+  Future<void> _onCheckPressed({
+    required int oid,
+    required int lid,
+    required String number,
+  }) async {
+    if (!mounted || _user?.uid == null) return;
+    final memberId = _user!.uid;
+
+    try {
+      final checkRes = await http.post(
+        Uri.parse('https://lotto-api-production.up.railway.app/api/User/check'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({'memberId': memberId, 'lid': lid}),
+      );
+
+      log('check status: ${checkRes.statusCode}');
+      log(checkRes.body);
+
+      bool isWin = false;
+      int prize = 0;
+
+      if (checkRes.statusCode == 200 && checkRes.body.isNotEmpty) {
+        final body = jsonDecode(checkRes.body);
+
+        if (body is Map<String, dynamic>) {
+          final dynWin = body['isWin'] ?? body['win'] ?? body['isWinner'];
+          if (dynWin is bool) isWin = dynWin;
+
+          final dynPrize =
+              body['prize'] ?? body['payout'] ?? body['payoutRate'] ?? 0;
+          if (dynPrize is num) {
+            prize = dynPrize.round(); // รองรับ double → int
+          }
+
+          if (dynWin == null) isWin = prize > 0;
+        } else if (body is bool) {
+          isWin = body;
+        } else if (body is String) {
+          isWin = body.toLowerCase() == 'true';
+        }
+      }
+
+      if (!mounted) return;
+
+      if (!isWin) {
+        // ❌ ไม่ถูกรางวัล → dialog กลางจอ
+        _showResultDialog(
+          isWinner: false,
+          number: number,
+          prize: 0,
+          onClaim: null,
+        );
+        return;
+      }
+
+      // ✅ ถูกรางวัล → dialog กลางจอ + ปุ่มขึ้นเงิน
+      _showResultDialog(
+        isWinner: true,
+        number: number,
+        prize: prize,
+        onClaim: () => _claimPrize(oid, prize),
+      );
+    } catch (e, st) {
+      log('check error: $e\n$st');
+      if (!mounted) return;
+      // เก็บ snackbar สำหรับ error จริง ๆ เท่านั้น
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เกิดข้อผิดพลาด กรุณาลองใหม่')),
+      );
+    }
+  }
+
+  // ====== Dialogs (บังคับกลางจอด้วย showGeneralDialog) ======
+
+  void _showResultDialog({
+    required bool isWinner,
+    required String number,
+    required int prize,
+    VoidCallback? onClaim,
+  }) {
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierLabel: 'result',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, __, ___) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.82,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isWinner
+                        ? Icons.sentiment_satisfied_alt
+                        : Icons.sentiment_dissatisfied,
+                    color: isWinner ? Colors.green : Colors.red,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isWinner ? 'ยินดีด้วย!' : 'น่าเสียดาย!',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isWinner
+                        ? 'คุณถูกรางวัล ${_formatPrize(prize)} บาท'
+                        : 'คุณไม่ถูกรางวัล',
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3CD),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      number,
+                      style: const TextStyle(
+                        letterSpacing: 4,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              Navigator.of(context, rootNavigator: true).pop(),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                            side: const BorderSide(color: Colors.black26),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('ปิด'),
+                        ),
+                      ),
+                      if (isWinner && onClaim != null) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context, rootNavigator: true).pop();
+                              onClaim();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              minimumSize: const Size.fromHeight(46),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('ขึ้นเงินรางวัล'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (_, anim, __, child) => ScaleTransition(
+        scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+        child: child,
+      ),
+    );
+  }
+
+  void _showClaimSuccessDialog() {
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierLabel: 'claim',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, __, ___) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.78,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'ขึ้นรางวัลสำเร็จ',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('ปิด'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (_, anim, __, child) => ScaleTransition(
+        scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+        child: child,
+      ),
+    );
+  }
+
+  // ---------- ขึ้นเงิน ----------
+  Future<void> _claimPrize(int oid, int prize) async {
+    if (!mounted || _user?.uid == null) return;
+    final memberId = _user!.uid;
+
+    try {
+      final claimRes = await http.post(
+        Uri.parse('http://10.0.2.2:5197/api/User/claim'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({'memberId': memberId, 'orderId': oid}),
+      );
+
+      log('claim status: ${claimRes.statusCode}');
+      log(claimRes.body);
+
+      if (!mounted) return;
+
+      if (claimRes.statusCode >= 200 && claimRes.statusCode < 300) {
+        _showClaimSuccessDialog(); // ✅ แสดง dialog สำเร็จ
+        await _loadFromSession(); // อัปเดตยอดเงินใน session
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ขึ้นรางวัลไม่สำเร็จ กรุณาลองอีกครั้ง'),
+            backgroundColor: Color(0xFFFF5722),
+          ),
+        );
+      }
+    } catch (e, st) {
+      log('claim error: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เกิดข้อผิดพลาดในการขึ้นรางวัล'),
+          backgroundColor: Color(0xFFFF5722),
+        ),
+      );
+    }
+  }
+
+  String _formatPrize(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      buf.write(s[i]);
+      final pos = s.length - i - 1;
+      if (pos % 3 == 0 && pos != 0) buf.write(',');
+    }
+    return buf.toString();
   }
 
   @override
   Widget build(BuildContext context) {
     final balance = widget.user?.balance?.toDouble() ?? 9999.99;
 
-    // ตัวอย่างเลขที่ต้องการตรวจ (mock)
-    final numbers = <String>["5187456", "5187456", "5187456"];
-
     return Scaffold(
-      // ✅ พื้นหลังเต็มจอ
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -68,7 +410,6 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // แถวบน: Back + Title + Balance
                 Row(
                   children: [
                     IconButton(
@@ -92,7 +433,6 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
                     _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
-
                 const SizedBox(height: 12),
                 const Center(
                   child: Text(
@@ -105,19 +445,16 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // รายการการ์ดสำหรับเลขแต่ละใบ
                 Column(
-                  children: numbers
+                  children: mylotto
                       .map(
                         (n) => _CheckCard(
-                          number: n,
-                          onCheck: () {
-                            // TODO: ต่อ API ตรวจผลจริงได้ที่นี่
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('ตรวจเลข $n (ตัวอย่าง)')),
-                            );
-                          },
+                          number: n.number,
+                          onCheck: () => _onCheckPressed(
+                            oid: n.oid,
+                            lid: n.lotteryId,
+                            number: n.number,
+                          ),
                         ),
                       )
                       .toList(),
@@ -127,13 +464,9 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
           ),
         ),
       ),
-
-      // ✅ BottomNav: ไฮไลต์แท็บ “หวยของฉัน” (index = 1) ตามหมวดลอตเตอรี่
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
-        // ถ้า BottomNav ของคุณรองรับ argumentsPerIndex:
-        // argumentsPerIndex: [user, user, user, user],
       ),
     );
   }
@@ -192,12 +525,11 @@ class _CheckCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // กล่องเลขเหลือง
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE082), // เหลืองอ่อน
+                color: const Color(0xFFFFE082),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -214,12 +546,10 @@ class _CheckCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // ปุ่ม "ตรวจล็อตเตอรี่" (เขียว)
           ElevatedButton(
             onPressed: onCheck,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2E7D32), // เขียวเข้มคล้ายดีไซน์
+              backgroundColor: const Color(0xFF2E7D32),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
