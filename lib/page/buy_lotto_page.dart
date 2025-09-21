@@ -274,7 +274,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
 
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
-        routeNames: const ['/home', '/buy', '/wallet', '/member'],
+        routeNames: const ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
   }

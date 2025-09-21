@@ -1,7 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
+
+// === เพิ่ม import ของ req/res ตามที่คุณสร้างไว้ ===
+import 'package:mobile_lotto/model/request/history_buy_req.dart';
+import 'package:mobile_lotto/model/response/history_buy_res_post.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -12,6 +19,10 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   User? _user;
+
+  bool _loading = false;
+  String? _error;
+  List<HistoryBuyResPost> _items = [];
 
   @override
   void initState() {
@@ -33,25 +44,153 @@ class _HistoryPageState extends State<HistoryPage> {
     final u = await Session.getUser();
     if (!mounted) return;
     if (u != null) {
-      setState(() {
-        _user = u;
-      });
+      setState(() => _user = u);
+      await _fetchHistory(); // โหลดรายการทันทีเมื่อได้ user
     } else {
       setState(() {});
     }
   }
 
+  Future<void> _fetchHistory() async {
+    if (_user == null) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      // NOTE: ถ้า User ของคุณใช้ชื่อฟิลด์อื่น ให้แก้ตรงนี้
+      final req = HistoryBuyReq(memberId: _user!.uid);
+
+      final resp = await http.post(
+        Uri.parse(
+          "https://lotto-api-production.up.railway.app/api/User/TxnLotto",
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(req.toJson()),
+      );
+
+      if (resp.statusCode == 200) {
+        final list = historyBuyResPostFromJson(resp.body);
+
+        // จัดเรียงใหม่ (ล่าสุดอยู่บน)
+        list.sort((a, b) => b.dateIso.compareTo(a.dateIso));
+
+        setState(() {
+          _items = list;
+        });
+      } else {
+        setState(() {
+          _error = 'เกิดข้อผิดพลาด (${resp.statusCode}) : ${resp.body}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _fetchHistory,
+                child: const Text('ลองอีกครั้ง'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_items.isEmpty) {
+      return const Center(
+        child: Text(
+          "ยังไม่มีประวัติการซื้อ",
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchHistory,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+        itemBuilder: (_, i) {
+          final it = _items[i];
+          return Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.confirmation_number),
+              ),
+              title: Text(
+                "เลข: ${it.number}",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text("งวด: ${it.dateTh}"),
+              trailing: Text(
+                _formatShort(it.dateIso),
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemCount: _items.length,
+      ),
+    );
+  }
+
+  String _formatShort(DateTime dt) {
+    // รูปแบบย่อเช่น 21/09/25 14:30
+    final d = dt.toLocal();
+    final two = (int x) => x.toString().padLeft(2, '0');
+    final yy = (d.year % 100).toString().padLeft(2, '0');
+    return "${two(d.day)}/${two(d.month)}/$yy ${two(d.hour)}:${two(d.minute)}";
+    // ถ้าต้องการใช้ dateTh ที่มาจาก API ก็สามารถใช้ it.dateTh แทนได้
+  }
+
   @override
   Widget build(BuildContext context) {
+    final balanceStr = (_user?.balance ?? 0).toStringAsFixed(2);
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF006064), // ✅ สีเดียวกับพื้นหลังด้านบน
+        backgroundColor: const Color(0xFF006064),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "ประวัติการซื้อ",
@@ -67,8 +206,8 @@ class _HistoryPageState extends State<HistoryPage> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "฿ ${(_user?.balance ?? 0).toStringAsFixed(2)}",
-              style: TextStyle(
+              "฿ $balanceStr",
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
@@ -87,18 +226,18 @@ class _HistoryPageState extends State<HistoryPage> {
             stops: [0.0, 0.5, 1.0],
           ),
         ),
-        child: const Center(
-          child: Text(
-            "เนื้อหาประวัติการซื้อ",
-            style: TextStyle(color: Colors.white, fontSize: 18),
-          ),
-        ),
+        child: _buildBody(),
       ),
 
       bottomNavigationBar: BottomNav(
         currentIndex: 3,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
         argumentsPerIndex: [_user, _user, _user, _user],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _fetchHistory,
+        icon: const Icon(Icons.refresh),
+        label: const Text('รีเฟรช'),
       ),
     );
   }
