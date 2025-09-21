@@ -1,7 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+// ⬇️ ปรับ path ให้ตรงโปรเจกต์ของคุณ
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-import 'package:mobile_lotto/page/buttom_nav.dart'; // ใช้ BottomNav ของโปรเจกต์คุณ
+import 'package:mobile_lotto/page/buttom_nav.dart';
+
+// ⬇️ import models req/res ของคุณ (ตามไฟล์จริงในโปรเจกต์)
+import 'package:mobile_lotto/model/request/history_buy_req.dart';
+import 'package:mobile_lotto/model/response/history_buy_res_post.dart';
 
 class MyTicketsPage extends StatefulWidget {
   final User? user;
@@ -13,12 +21,18 @@ class MyTicketsPage extends StatefulWidget {
 
 class _MyTicketsPageState extends State<MyTicketsPage> {
   User? _user;
-  double get balance => widget.user?.balance ?? 0.0;
+
+  // --- state สำหรับโหลด/ผิดพลาด/ข้อมูล ---
+  bool _loading = false;
+  String? _error;
+  List<HistoryBuyResPost> _history = [];
+
+  double get balance => _user?.balance ?? widget.user?.balance ?? 0.0;
 
   @override
   void initState() {
     super.initState();
-    _loadFromSession();
+    _bootstrap();
   }
 
   @override
@@ -28,31 +42,128 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     if (args is User) {
       _user = args;
     }
-    setState(() {});
+  }
+
+  Future<void> _bootstrap() async {
+    // 1) โหลด user จาก session (ถ้ามี)
+    await _loadFromSession();
+
+    // 2) ดึง history ต่อเมื่อมี memberId
+    if (_user?.uid != null) {
+      await _fetchHistory();
+    }
   }
 
   Future<void> _loadFromSession() async {
     final u = await Session.getUser();
     if (!mounted) return;
-    if (u != null) {
+    setState(() {
+      _user = u ?? widget.user;
+    });
+  }
+
+  Future<void> _fetchHistory() async {
+    // เพิ่มการตรวจสอบ uid แบบชัดเจนมากขึ้น
+    final uid = _user?.uid;
+    if (uid == null) {
       setState(() {
-        _user = u;
+        _error = "ไม่พบ memberId ของผู้ใช้";
+        _history = [];
       });
-    } else {
-      setState(() {});
+      return;
     }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      // แก้ไข: cast uid เป็น int (ถ้าแน่ใจว่าเป็น int)
+      final req = HistoryBuyReq(memberId: uid as int);
+      final url = Uri.parse(
+        "https://lotto-api-production.up.railway.app/api/User/TxnLotto",
+      );
+
+      final resp = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(req.toJson()),
+      );
+
+      if (resp.statusCode == 200) {
+        // เพิ่มการตรวจสอบ response body
+        final responseBody = resp.body.trim();
+        if (responseBody.isEmpty) {
+          setState(() {
+            _history = [];
+            _error = null;
+          });
+          return;
+        }
+
+        try {
+          // แปลง JSON เป็น list แล้วกรองเฉพาะรายการที่สมบูรณ์
+          final jsonList = json.decode(responseBody) as List;
+          final List<HistoryBuyResPost> allData = [];
+          
+          for (var item in jsonList) {
+            try {
+              // ตรวจสอบว่ามีข้อมูลสำคัญหรือไม่
+              if (item != null && 
+                  item is Map<String, dynamic> && 
+                  item['number'] != null && 
+                  item['number'].toString().trim().isNotEmpty) {
+                
+                final historyItem = HistoryBuyResPost.fromJson(item);
+                allData.add(historyItem);
+              }
+            } catch (itemError) {
+              // ข้าม item ที่ parse ไม่ได้
+              print('Skip invalid item: $itemError');
+              continue;
+            }
+          }
+          
+          final List<HistoryBuyResPost> data = allData;
+
+          setState(() {
+            _history = data;
+            _error = null;
+          });
+        } catch (parseError) {
+          setState(() {
+            _error = "เกิดข้อผิดพลาดในการแปลงข้อมูล: $parseError";
+            _history = [];
+          });
+        }
+      } else {
+        setState(() {
+          _error = "เรียก API ล้มเหลว (${resp.statusCode}) : ${resp.reasonPhrase ?? 'Unknown error'}";
+          _history = [];
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = "เกิดข้อผิดพลาด: $e";
+        _history = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await _fetchHistory();
   }
 
   @override
   Widget build(BuildContext context) {
-    // ตัวอย่างรายการที่ซื้อ (Mock)
-    final tickets = <_Ticket>[
-      _Ticket(number: "5187456", price: 100, status: "สำเร็จ"),
-      _Ticket(number: "5187456", price: 100, status: "สำเร็จ"),
-    ];
-
     return Scaffold(
-      // ✅ พื้นหลังเต็มจอ
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -65,56 +176,97 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // แถวบน: Back + Title + Balance
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Colors.white,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(width: 6),
-                    const Expanded(
-                      child: Text(
-                        "หวยของฉัน",
-                        style: TextStyle(
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            displacement: 24,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // แถวบน: Back + Title + Balance
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
                           color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          "หวยของฉัน",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      _BalancePill(amount: balance),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // --- ส่วนเนื้อหา: loading / error / empty / list ---
+                  if (_loading) ...[
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 32),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.6,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                    _BalancePill(amount: _user?.balance ?? 0),
+                  ] else if (_error != null) ...[
+                    _ErrorBanner(
+                      message: _error!,
+                      onRetry: _fetchHistory, // แก้ไข: ไม่ต้องใช้ closure
+                    ),
+                  ] else if (_history.isEmpty) ...[
+                    const _EmptyState(),
+                  ] else ...[
+                    // แปลง history เป็นการ์ด (กัน null ทุกช่อง)
+                    Column(
+                      children: _history.map((h) {
+                        // ปรับปรุงการจัดการ null สำหรับ number
+                        final String displayNumber = h.number?.trim() ?? '-';
+
+                        // ปรับปรุงการจัดการ null สำหรับ date
+                        String displayDate = '—';
+                        if (h.dateTh != null && h.dateTh!.trim().isNotEmpty) {
+                          displayDate = h.dateTh!.trim();
+                        } else if (h.dateIso != null) {
+                          try {
+                            displayDate = h.dateIso!.toIso8601String();
+                          } catch (e) {
+                            displayDate = '—';
+                          }
+                        }
+
+                        return _TicketCard(
+                          number: displayNumber,
+                          subtitleRight: displayDate,
+                          status: "สำเร็จ",
+                        );
+                      }).toList(),
+                    ),
                   ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // รายการที่ซื้อ
-                Column(
-                  children: tickets.map((t) => _TicketCard(ticket: t)).toList(),
-                ),
-
-                const SizedBox(height: 12),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
 
-      // ✅ BottomNav: ไฮไลต์แท็บ "หวยของฉัน" (index = 1)
+      // BottomNav ของโปรเจกต์คุณ
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
-        // ถ้า BottomNav รองรับ argumentsPerIndex ให้ส่ง user ไปด้วย:
-        // argumentsPerIndex: [user, user, user, user],
       ),
     );
   }
@@ -156,20 +308,80 @@ class _BalancePill extends StatelessWidget {
   }
 }
 
-class _Ticket {
-  final String number;
-  final int price;
-  final String status;
-  const _Ticket({
-    required this.number,
-    required this.price,
-    required this.status,
-  });
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 18),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "เกิดข้อผิดพลาด",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(message, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onRetry,
+              child: const Text(
+                "ลองใหม่",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white30, width: 1.2),
+      ),
+      child: const Center(
+        child: Text(
+          "ยังไม่มีประวัติการซื้อ",
+          style: TextStyle(color: Colors.white70, fontSize: 14.5),
+        ),
+      ),
+    );
+  }
 }
 
 class _TicketCard extends StatelessWidget {
-  final _Ticket ticket;
-  const _TicketCard({required this.ticket});
+  final String number; // แก้ไข: ไม่ยอมรับ null แล้ว
+  final String status;
+  final String subtitleRight; // แก้ไข: ไม่ยอมรับ null แล้ว
+
+  const _TicketCard({
+    required this.number,
+    required this.status,
+    required this.subtitleRight, // แก้ไข: required แล้ว
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,13 +401,12 @@ class _TicketCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE082), // เหลืองอ่อน
+                color: const Color(0xFFFFE082),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
-                  // ใส่เว้นวรรคเล็กน้อยให้ฟีลเหมือนดีไซน์
-                  ticket.number,
+                  number,
                   style: const TextStyle(
                     letterSpacing: 4,
                     fontWeight: FontWeight.w700,
@@ -208,17 +419,17 @@ class _TicketCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // ราคา + สถานะ
+          // วันที่/สถานะ
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "ราคา: ${ticket.price} บาท",
+                subtitleRight,
                 style: const TextStyle(color: Colors.white70, fontSize: 12.5),
               ),
               const SizedBox(height: 10),
               Text(
-                ticket.status,
+                status,
                 style: const TextStyle(
                   color: Color(0xFF00C4BA), // เขียวอมฟ้า "สำเร็จ"
                   fontWeight: FontWeight.w700,

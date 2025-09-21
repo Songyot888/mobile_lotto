@@ -1,5 +1,26 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+// ===== โมเดล Request =====
+class AddLotteryRequest {
+  String role;
+  int number;
+
+  AddLotteryRequest({required this.role, required this.number});
+
+  Map<String, dynamic> toJson() => {"role": role, "number": number};
+}
+
+// ===== โมเดล Response =====
+class AddLotteryRespone {
+  String message;
+  AddLotteryRespone({required this.message});
+
+  factory AddLotteryRespone.fromJson(Map<String, dynamic> json) =>
+      AddLotteryRespone(message: json["message"]);
+}
 
 class AddlotteryPage extends StatefulWidget {
   const AddlotteryPage({super.key});
@@ -10,6 +31,7 @@ class AddlotteryPage extends StatefulWidget {
 
 class _AddlotteryPageState extends State<AddlotteryPage> {
   final _qtyCtl = TextEditingController();
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -17,10 +39,51 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
     super.dispose();
   }
 
+  Future<void> _submitLottery() async {
+    final qtyText = _qtyCtl.text.trim();
+    if (qtyText.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("กรุณากรอกจำนวนล็อตเตอรี่")));
+      return;
+    }
+
+    final req = AddLotteryRequest(role: "admin", number: int.parse(qtyText));
+
+    setState(() => _loading = true);
+
+    try {
+      final resp = await http.post(
+        Uri.parse(
+          "https://lotto-api-production.up.railway.app/api/Admin/add-lottery",
+        ),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(req.toJson()),
+      );
+
+      if (resp.statusCode == 200) {
+        final data = AddLotteryRespone.fromJson(jsonDecode(resp.body));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("✅ ${data.message}")));
+        Navigator.pop(context, true); // ส่งค่า true กลับไปบอกว่ามีการเพิ่มแล้ว
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ เพิ่มไม่สำเร็จ: ${resp.body}")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e")));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar สีเดียวกับพื้นหลังด้านบน
       appBar: AppBar(
         backgroundColor: const Color(0xFF006064),
         elevation: 0,
@@ -34,7 +97,6 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
         ),
         centerTitle: false,
       ),
-
       body: Container(
         height: MediaQuery.of(context).size.height,
         decoration: const BoxDecoration(
@@ -46,7 +108,6 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
           ),
         ),
         child: Center(
-          // ===== การ์ดสีขาวกลางจอ =====
           child: Container(
             width: 320,
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
@@ -73,8 +134,6 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // ช่องกรอกจำนวน
                 TextField(
                   controller: _qtyCtl,
                   keyboardType: TextInputType.number,
@@ -96,11 +155,8 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
                   ),
                 ),
                 const SizedBox(height: 18),
-
-                // ปุ่มสองคอลัมน์: ยกเลิก / เพิ่ม
                 Row(
                   children: [
-                    // ยกเลิก (ปุ่มเทา)
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -120,19 +176,10 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-
-                    // เพิ่ม (ปุ่มเขียวไล่เฉด)
                     Expanded(
                       child: _GradientButton(
-                        onTap: () {
-                          // TODO: ใส่ลอจิกเพิ่มล็อตเตอรี่ของคุณ
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("เพิ่ม ${_qtyCtl.text} รายการ"),
-                            ),
-                          );
-                        },
-                        text: "เพิ่ม",
+                        onTap: _loading ? () {} : _submitLottery,
+                        text: _loading ? "กำลังเพิ่ม..." : "เพิ่ม",
                       ),
                     ),
                   ],
@@ -146,11 +193,10 @@ class _AddlotteryPageState extends State<AddlotteryPage> {
   }
 }
 
-// ปุ่มไล่เฉดให้เหมือนในภาพ
+// ปุ่ม Gradient
 class _GradientButton extends StatelessWidget {
   final VoidCallback onTap;
   final String text;
-
   const _GradientButton({required this.onTap, required this.text});
 
   @override
