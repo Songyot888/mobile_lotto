@@ -11,6 +11,7 @@ import 'package:mobile_lotto/page/menu_page.dart';
 import 'package:mobile_lotto/page/my_tickets_page.dart';
 import 'package:mobile_lotto/page/personal_page.dart';
 import 'package:mobile_lotto/page/profile_page.dart';
+import 'package:mobile_lotto/page/random_draw_page.dart';
 import 'package:mobile_lotto/page/register_page.dart';
 import 'package:mobile_lotto/page/results_page.dart';
 import 'package:mobile_lotto/page/search_number_page.dart';
@@ -56,6 +57,7 @@ class MyApp extends StatelessWidget {
         '/edit': (context) => const EditprofilePage(),
         '/addlottery': (context) => const AddlotteryPage(),
         '/search': (context) => const SearchNumberPage(),
+        '/random-draw': (context) => const RandomDrawPage(),
       },
     );
   }
