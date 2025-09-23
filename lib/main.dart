@@ -51,7 +51,7 @@ class MyApp extends StatelessWidget {
         '/topup': (context) => const TopUpPage(),
         '/withdraw': (context) => const WithdrawPage(),
         '/purchase-history': (context) => const HistoryPage(),
-        '/winning-history': (context) => const WinningHistory(),
+        '/winning-history': (context) => const WinningHistoryPage(),
         '/buy': (context) => const BuyLottoPage(),
         '/check-lottery': (context) => const CheckLotteryPage(),
         '/previous-results': (context) => const ResultsPage(),
