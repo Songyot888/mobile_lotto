@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 // ⬇️ ปรับให้ตรงกับโปรเจกต์ของคุณ
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-import 'package:mobile_lotto/model/request/ran_result_req.dart';
 import 'package:mobile_lotto/model/response/ran_result_res_post.dart';
 
 class RandomDrawPage extends StatefulWidget {

@@ -21,18 +21,30 @@ class MyTicketsPage extends StatefulWidget {
 
 class _MyTicketsPageState extends State<MyTicketsPage> {
   User? _user;
+  VoidCallback? _userListener;
 
   // --- state สำหรับโหลด/ผิดพลาด/ข้อมูล ---
   bool _loading = false;
   String? _error;
   List<HistoryBuyResPost> _history = [];
 
-  double get balance => _user?.balance ?? widget.user?.balance ?? 0.0;
+  double get balance =>
+      Session.currentUser.value?.balance ??
+      _user?.balance ??
+      widget.user?.balance ??
+      0.0;
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {
+        _user = Session.currentUser.value;
+      });
+    };
+    Session.currentUser.addListener(_userListener!);
   }
 
   @override
@@ -80,7 +92,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
 
     try {
       // แก้ไข: cast uid เป็น int (ถ้าแน่ใจว่าเป็น int)
-      final req = HistoryBuyReq(memberId: uid as int);
+      final req = HistoryBuyReq(memberId: uid);
       final url = Uri.parse(
         "https://lotto-api-production.up.railway.app/api/User/TxnLotto",
       );
@@ -106,15 +118,14 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
           // แปลง JSON เป็น list แล้วกรองเฉพาะรายการที่สมบูรณ์
           final jsonList = json.decode(responseBody) as List;
           final List<HistoryBuyResPost> allData = [];
-          
+
           for (var item in jsonList) {
             try {
               // ตรวจสอบว่ามีข้อมูลสำคัญหรือไม่
-              if (item != null && 
-                  item is Map<String, dynamic> && 
-                  item['number'] != null && 
+              if (item != null &&
+                  item is Map<String, dynamic> &&
+                  item['number'] != null &&
                   item['number'].toString().trim().isNotEmpty) {
-                
                 final historyItem = HistoryBuyResPost.fromJson(item);
                 allData.add(historyItem);
               }
@@ -124,7 +135,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
               continue;
             }
           }
-          
+
           final List<HistoryBuyResPost> data = allData;
 
           setState(() {
@@ -139,7 +150,8 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
         }
       } else {
         setState(() {
-          _error = "เรียก API ล้มเหลว (${resp.statusCode}) : ${resp.reasonPhrase ?? 'Unknown error'}";
+          _error =
+              "เรียก API ล้มเหลว (${resp.statusCode}) : ${resp.reasonPhrase ?? 'Unknown error'}";
           _history = [];
         });
       }
@@ -270,6 +282,14 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    if (_userListener != null) {
+      Session.currentUser.removeListener(_userListener!);
+    }
+    super.dispose();
+  }
 }
 
 // ---------------- Widgets ย่อย ----------------
@@ -377,7 +397,6 @@ class _TicketCard extends StatelessWidget {
   final String status;
   final String subtitleRight; // แก้ไข: ไม่ยอมรับ null แล้ว
 
-
   const _TicketCard({
     required this.number,
     required this.status,
@@ -397,7 +416,6 @@ class _TicketCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-
           // กล่องเลขเหลือง
           Expanded(
             child: Container(
@@ -420,7 +438,6 @@ class _TicketCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
 
           // วันที่/สถานะ
           Column(

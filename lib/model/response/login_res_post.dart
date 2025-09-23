@@ -3,7 +3,6 @@
 //     final loginRespone = loginResponeFromJson(jsonString);
 
 import 'dart:convert';
-import 'dart:ffi';
 
 LoginRespone loginResponeFromJson(String str) =>
     LoginRespone.fromJson(json.decode(str));
@@ -47,7 +46,9 @@ class User {
     uid: json["uid"],
     fullName: json["fullName"],
     email: json["email"],
-    balance: json["balance"],
+    balance: (json["balance"] is int)
+        ? (json["balance"] as int).toDouble()
+        : (json["balance"] as num).toDouble(),
     phone: json["phone"],
     bankName: json["bankName"],
     bankNumber: json["bankNumber"],

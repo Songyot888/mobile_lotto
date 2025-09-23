@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
@@ -15,11 +13,19 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   User? _user;
+  VoidCallback? _userListener;
 
   @override
   void initState() {
     super.initState();
     _initUser();
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {
+        _user = Session.currentUser.value;
+      });
+    };
+    Session.currentUser.addListener(_userListener!);
   }
 
   @override
@@ -189,6 +195,14 @@ class _ProfilePageState extends State<ProfilePage> {
         argumentsPerIndex: [_user, _user, _user, _user],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    if (_userListener != null) {
+      Session.currentUser.removeListener(_userListener!);
+    }
+    super.dispose();
   }
 }
 

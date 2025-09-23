@@ -54,7 +54,6 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _fetchHistory() async {
     if (_user == null) return;
 
-    // ตรวจสอบ uid ก่อนส่ง
     final uid = _user?.uid;
     if (uid == null) {
       setState(() {
@@ -70,29 +69,7 @@ class _HistoryPageState extends State<HistoryPage> {
     });
 
     try {
-      // แก้ไข: จัดการ uid ให้เป็น int
-      int memberId;
-      if (uid is int) {
-        memberId = uid;
-      } else if (uid is String) {
-        memberId = int.tryParse(uid as String) ?? 0;
-        if (memberId == 0) {
-          setState(() {
-            _error = "รูปแบบ memberId ไม่ถูกต้อง";
-            _items = [];
-          });
-          return;
-        }
-      } else {
-        setState(() {
-          _error = "ประเภทข้อมูล memberId ไม่ถูกต้อง";
-          _items = [];
-        });
-        return;
-      }
-
-      final req = HistoryBuyReq(memberId: memberId);
-
+      final req = HistoryBuyReq(memberId: uid);
       final resp = await http.post(
         Uri.parse(
           "https://lotto-api-production.up.railway.app/api/User/TxnLotto",
@@ -102,7 +79,6 @@ class _HistoryPageState extends State<HistoryPage> {
       );
 
       if (resp.statusCode == 200) {
-        // เพิ่มการตรวจสอบ response body
         final responseBody = resp.body.trim();
         if (responseBody.isEmpty) {
           setState(() {
@@ -113,13 +89,11 @@ class _HistoryPageState extends State<HistoryPage> {
         }
 
         try {
-          // แปลง JSON เป็น list แล้วกรองเฉพาะรายการที่สมบูรณ์
           final jsonList = json.decode(responseBody) as List;
           final List<HistoryBuyResPost> allData = [];
 
           for (var item in jsonList) {
             try {
-              // ตรวจสอบว่ามีข้อมูลสำคัญหรือไม่
               if (item != null &&
                   item is Map<String, dynamic> &&
                   item['number'] != null &&
@@ -128,27 +102,26 @@ class _HistoryPageState extends State<HistoryPage> {
                 allData.add(historyItem);
               }
             } catch (itemError) {
-              // ข้าม item ที่ parse ไม่ได้
               print('Skip invalid item: $itemError');
               continue;
             }
           }
 
-          // จัดเรียงใหม่ (ล่าสุดอยู่บน) - ตรวจสอบ null ก่อน
           allData.sort((a, b) {
             final dateA = a.dateIso;
             final dateB = b.dateIso;
-
             if (dateA == null && dateB == null) return 0;
             if (dateA == null) return 1;
             if (dateB == null) return -1;
-
             return dateB.compareTo(dateA);
           });
 
           setState(() {
             _items = allData;
           });
+
+          // ✅ **จุดที่แก้ไข:** ลบการเรียก API check สถานะเบื้องหลังออก
+          // เนื่องจากข้อมูล status มาจาก TxnLotto โดยตรงแล้ว
         } catch (parseError) {
           setState(() {
             _error = "เกิดข้อผิดพลาดในการแปลงข้อมูล: $parseError";
@@ -171,6 +144,8 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
   }
+
+  // ✅ **จุดที่แก้ไข:** ลบฟังก์ชัน _updateStatusesInBackground และ _fetchStatus ออกทั้งหมด
 
   Widget _buildBody() {
     if (_loading) {
@@ -221,7 +196,54 @@ class _HistoryPageState extends State<HistoryPage> {
         itemBuilder: (_, i) {
           final it = _items[i];
 
-          // ป้องกัน null values
+          // ✅ Mapping ใหม่ตาม DB: NULL=ยังไม่ได้เช็ค, 0=ไม่ถูกรางวัล, 1=ถูกรางวัล
+          int? statusInt;
+          final st = it.status;
+          if (st == null) {
+            statusInt = null; // ยังไม่ได้เช็ค
+          } else if (st is int) {
+            statusInt = st as int?;
+          } else if (st is num) {
+            statusInt = st as int?;
+          } else if (st is bool) {
+            statusInt = st ? 1 : 0;
+          } else if (st is String) {
+            final s = st.toString().trim().toLowerCase();
+            if (s.isEmpty || s == 'null') {
+              statusInt = null;
+            } else if (s == '1' || s == 'true') {
+              statusInt = 1;
+            } else if (s == '0' || s == 'false') {
+              statusInt = 0;
+            } else {
+              // ค่าผิดปกติ ให้ถือว่ายังไม่เช็ค
+              statusInt = null;
+            }
+          } else {
+            statusInt = null;
+          }
+
+          String statusText;
+          Color statusColor;
+          IconData statusIcon;
+
+          if (statusInt == 0) {
+            // 1 = ถูกรางวัล
+            statusText = "ถูกรางวัล";
+            statusColor = Colors.green.shade700;
+            statusIcon = Icons.emoji_events;
+          } else if (statusInt == 1) {
+            // 0 = ไม่ถูกรางวัล
+            statusText = "ไม่ถูกรางวัล";
+            statusColor = Colors.red.shade700;
+            statusIcon = Icons.clear;
+          } else {
+            // NULL หรือไม่รู้ค่า = ยังไม่ได้เช็ค
+            statusText = "ยังไม่ได้เช็ค";
+            statusColor = Colors.grey.shade700;
+            statusIcon = Icons.hourglass_empty;
+          }
+
           final displayNumber = it.number?.trim() ?? '-';
           final displayDateTh = it.dateTh?.trim() ?? '—';
 
@@ -231,14 +253,19 @@ class _HistoryPageState extends State<HistoryPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.confirmation_number),
+              leading: CircleAvatar(
+                backgroundColor: statusColor.withOpacity(0.15),
+                child: Icon(statusIcon, color: statusColor),
               ),
               title: Text(
-                "เลข: $displayNumber",
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                statusText,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: statusColor,
+                ),
               ),
-              subtitle: Text("งวด: $displayDateTh"),
+              subtitle: Text("เลข: $displayNumber  •  งวด: $displayDateTh"),
               trailing: Text(
                 _formatShort(it.dateIso),
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -253,15 +280,11 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   String _formatShort(DateTime? dt) {
-    // ป้องกัน null DateTime
     if (dt == null) return '—';
-
-    // รูปแบบย่อเช่น 21/09/25 14:30
     final d = dt.toLocal();
-    final two = (int x) => x.toString().padLeft(2, '0');
+    two(int x) => x.toString().padLeft(2, '0');
     final yy = (d.year % 100).toString().padLeft(2, '0');
     return "${two(d.day)}/${two(d.month)}/$yy ${two(d.hour)}:${two(d.minute)}";
-    // ถ้าต้องการใช้ dateTh ที่มาจาก API ก็สามารถใช้ it.dateTh แทนได้
   }
 
   @override
@@ -299,7 +322,6 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ],
       ),
-
       body: Container(
         height: MediaQuery.of(context).size.height,
         decoration: const BoxDecoration(
@@ -312,7 +334,6 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
         child: _buildBody(),
       ),
-
       bottomNavigationBar: BottomNav(
         currentIndex: 3,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],

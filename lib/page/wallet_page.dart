@@ -12,11 +12,19 @@ class Wallet_Page extends StatefulWidget {
 
 class _Wallet_PageState extends State<Wallet_Page> {
   User? _user;
+  VoidCallback? _userListener;
 
   @override
   void initState() {
     super.initState();
     _loadFromSession();
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {
+        _user = Session.currentUser.value;
+      });
+    };
+    Session.currentUser.addListener(_userListener!);
   }
 
   @override
@@ -94,18 +102,27 @@ class _Wallet_PageState extends State<Wallet_Page> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      " ${(_user?.balance ?? 0).toStringAsFixed(2)} ฿",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    // ✅ ใช้ ValueListenableBuilder เพื่อรับค่าจาก Session
+                    ValueListenableBuilder<User?>(
+                      valueListenable: Session.currentUser,
+                      builder: (context, user, child) {
+                        final displayBalance =
+                            user?.balance ?? _user?.balance ?? 0.0;
+                        return Text(
+                          " ${displayBalance.toStringAsFixed(2)} ฿",
+                          style: const TextStyle(
+                            fontSize: 28,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
+              // ... rest of the widgets remain the same
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -120,8 +137,16 @@ class _Wallet_PageState extends State<Wallet_Page> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/topup');
+                    onPressed: () async {
+                      final refreshed = await Navigator.pushNamed(
+                        context,
+                        '/topup',
+                      );
+                      if (!mounted) return;
+                      // ✅ ไม่จำเป็นต้อง _loadFromSession() แล้ว เพราะใช้ ValueListenableBuilder
+                      // if (refreshed == true) {
+                      //   _loadFromSession();
+                      // }
                     },
                     child: const Text(
                       "เติมเงิน",
@@ -171,12 +196,19 @@ class _Wallet_PageState extends State<Wallet_Page> {
         ),
       ),
 
-      // ✅ ใช้ BottomNav กลาง (แท็บกระเป๋าเงิน = index 2)
       bottomNavigationBar: BottomNav(
         currentIndex: 2,
         routeNames: ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    if (_userListener != null) {
+      Session.currentUser.removeListener(_userListener!);
+    }
+    super.dispose();
   }
 
   Widget _buildMenuButton(

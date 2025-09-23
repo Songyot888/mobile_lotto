@@ -3,7 +3,6 @@ import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/page/buttom_nav.dart';
 import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
-import 'package:mobile_lotto/page/profile_page.dart';
 
 class Menu_page extends StatefulWidget {
   final User? user;

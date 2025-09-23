@@ -188,7 +188,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
         final data = BuyLotteryResPost.fromJson(json.decode(response.body));
 
         setState(() {
-          _walletOverride = data.wallet?.toDouble();
+          _walletOverride = data.wallet.toDouble();
           // ลบรายการที่ซื้อแล้วออกจากลิสต์
           _results.removeWhere((x) => x.lid == lotteryId);
           _all.removeWhere((x) => x.lid == lotteryId);
@@ -336,7 +336,7 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
 
   @override
   Widget build(BuildContext context) {
-    final balance = _walletOverride ?? _user?.balance?.toDouble() ?? 0.0;
+    final balance = _walletOverride ?? _user?.balance.toDouble() ?? 0.0;
 
     // จำกัดความยาว input ตามโหมด
     final int maxLen = _mode == 2 ? 2 : 3;
@@ -493,11 +493,11 @@ class _SearchNumberPageState extends State<SearchNumberPage> {
                   const SizedBox(height: 10),
                   Column(
                     children: _results.map((lottery) {
-                      final rawNumber = lottery.number?.toString() ?? "";
+                      final rawNumber = lottery.number.toString() ?? "";
                       final shortNumber = shortByMode(rawNumber);
                       final modeName = _modes[_mode];
                       final lotteryId = lottery.lid;
-                      final displayPrice = lottery.price?.toString() ?? "100";
+                      final displayPrice = lottery.price.toString() ?? "100";
 
                       return _ResultCard(
                         rawNumber: rawNumber,

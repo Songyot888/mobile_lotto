@@ -15,22 +15,26 @@ class MyLottoryRes {
   int oid;
   int lotteryId;
   String number;
+  bool? status;
 
   MyLottoryRes({
     required this.oid,
     required this.lotteryId,
     required this.number,
+    required this.status,
   });
 
   factory MyLottoryRes.fromJson(Map<String, dynamic> json) => MyLottoryRes(
     oid: json["oid"],
     lotteryId: json["lotteryId"],
     number: json["number"],
+    status: json["status"],
   );
 
   Map<String, dynamic> toJson() => {
     "oid": oid,
     "lotteryId": lotteryId,
     "number": number,
+    "status": status,
   };
 }
