@@ -216,7 +216,7 @@ class _AllLottoListPageState extends State<AllLottoListPage> {
                           itemBuilder: (_, i) {
                             final lottery = currentList[i];
                             return _buildLottoCard(
-                              lottery.number?.toString() ?? "------",
+                              lottery.number.toString() ?? "------",
                               (lottery.price ?? 100).toInt(),
                               isSold: lottery.status == 0,
                             );

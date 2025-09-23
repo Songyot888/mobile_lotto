@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_lotto/core/session.dart';
 import 'package:mobile_lotto/page/addlottery_page.dart';
 import 'package:mobile_lotto/page/admin_page.dart';
 import 'package:mobile_lotto/page/all_lotto_list_page.dart';
@@ -21,7 +22,9 @@ import 'package:mobile_lotto/page/wallet_page.dart';
 import 'package:mobile_lotto/page/winning_history.dart';
 import 'package:mobile_lotto/page/withdraw_page.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+   await Session.init();
   runApp(const MyApp());
 }
 

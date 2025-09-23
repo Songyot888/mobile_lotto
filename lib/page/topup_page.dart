@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_lotto/core/session.dart';
@@ -43,20 +45,21 @@ class TopUpPage extends StatefulWidget {
 
 class _TopUpPageState extends State<TopUpPage> {
   User? _user;
-  double? _walletOverride; // ใช้ override ยอดเงินหลัง topup สำเร็จ
-  double get balance =>
-      _walletOverride ??
-      _user?.balance ??
-      widget.user?.balance ??
-      0.0; // รองรับทุกกรณี
-
   final TextEditingController _amountCtrl = TextEditingController();
   bool _loading = false;
+  VoidCallback? _userListener;
 
   @override
   void initState() {
     super.initState();
     _loadFromSession();
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {
+        _user = Session.currentUser.value;
+      });
+    };
+    Session.currentUser.addListener(_userListener!);
   }
 
   @override
@@ -81,14 +84,13 @@ class _TopUpPageState extends State<TopUpPage> {
     }
   }
 
-  // ✅ Dialog การแจ้งผล
   void _showResultDialog(String msg, {bool success = true}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: const Color(0xFF00838F), // teal background
+        backgroundColor: const Color(0xFF00838F),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
           child: Column(
@@ -115,11 +117,10 @@ class _TopUpPageState extends State<TopUpPage> {
       ),
     );
 
-    // ปิด dialog อัตโนมัติหลัง 1.5 วิ
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
-      Navigator.of(context).pop(); // ปิด dialog
-      if (success) Navigator.pop(context); // ถ้าสำเร็จ -> กลับหน้าก่อน
+      Navigator.of(context).pop();
+      if (success) Navigator.pop(context, true);
     });
   }
 
@@ -133,7 +134,6 @@ class _TopUpPageState extends State<TopUpPage> {
       return;
     }
 
-    // หา memberId จาก _user หรือ widget.user
     final memberId = (_user?.uid ?? widget.user?.uid);
     if (memberId == null) {
       _showResultDialog('ไม่พบรหัสสมาชิก (memberId)', success: false);
@@ -147,46 +147,48 @@ class _TopUpPageState extends State<TopUpPage> {
         "https://lotto-api-production.up.railway.app/api/User/topup",
       );
 
-      final headers = <String, String>{'Content-Type': 'application/json'};
-
-      final resp = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(req.toJson()),
-      );
+      final resp = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(req.toJson()),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        // พยายามแปลง JSON
-        TopupResPost? data;
+        double? newWallet;
+        String successMsg = 'ทำรายการสำเร็จ';
         try {
-          final jsonMap = jsonDecode(resp.body) as Map<String, dynamic>;
-          data = TopupResPost.fromJson(jsonMap);
+          final decoded = jsonDecode(resp.body);
+          if (decoded is Map<String, dynamic>) {
+            // รองรับโครงสร้างที่แตกต่างกัน
+            if (decoded['wallet'] is num) {
+              newWallet = (decoded['wallet'] as num).toDouble();
+            } else if (decoded['balance'] is num) {
+              newWallet = (decoded['balance'] as num).toDouble();
+            } else if (decoded['newWallet'] is num) {
+              newWallet = (decoded['newWallet'] as num).toDouble();
+            }
+            if (decoded['message'] is String &&
+                (decoded['message'] as String).isNotEmpty) {
+              successMsg = decoded['message'] as String;
+            }
+          }
         } catch (_) {
-          // บาง API อาจคืนแค่มุมมองข้อความ
         }
 
-        // อัปเดตยอดเงินบน UI ทันที
-        if (data != null) {
-          setState(() async {
-            _walletOverride = data!.wallet.toDouble();
-            await Session.saveUser(_user!);
-          });
-
-          // ถ้าต้องการบันทึก Session ด้วย (แล้วแต่โครงสร้างโปรเจกต์)
-          // ถ้า User เป็น immutable และมี copyWith:
-          // final updated = _user?.copyWith(balance: data.wallet.toDouble());
-          // await Session.setUser(updated);
-          // setState(() => _user = updated);
-
-          _showResultDialog(
-            data.message.isNotEmpty ? data.message : 'ทำรายการสำเร็จ',
-            success: true,
-          );
-        } else {
-          _showResultDialog('ทำรายการสำเร็จ', success: true);
+        if (newWallet != null) {
+          // อัปเดตยอดใน Session เพื่อ notify ทุกหน้า
+          await Session.updateBalance(newWallet);
+          if (_user != null) {
+            setState(() {
+              _user!.balance = newWallet!;
+            });
+          }
         }
+
+        _showResultDialog(successMsg, success: true);
       } else {
-        // แสดง error จาก API ถ้ามี
         String apiMsg = 'เกิดข้อผิดพลาด (${resp.statusCode})';
         try {
           final m = jsonDecode(resp.body);
@@ -194,6 +196,13 @@ class _TopUpPageState extends State<TopUpPage> {
         } catch (_) {}
         _showResultDialog(apiMsg, success: false);
       }
+    } on TimeoutException {
+      _showResultDialog('การเชื่อมต่อหมดเวลา กรุณาลองใหม่', success: false);
+    } on SocketException {
+      _showResultDialog('ไม่มีการเชื่อมต่ออินเทอร์เน็ต', success: false);
+    } on FormatException {
+      // กรณีตอบกลับไม่ใช่ JSON แต่ status OK จะไม่มาถึงตรงนี้ (เราครอบไว้ข้างบนแล้ว)
+      _showResultDialog('ข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง', success: false);
     } catch (e) {
       _showResultDialog(
         'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่',
@@ -207,12 +216,14 @@ class _TopUpPageState extends State<TopUpPage> {
   @override
   void dispose() {
     _amountCtrl.dispose();
+    if (_userListener != null) {
+      Session.currentUser.removeListener(_userListener!);
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // (ลบบรรทัด _BalancePill(...) ที่เคยวางโดดๆ ไว้เหนือ Scaffold ออก — มันไม่มีผล)
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -252,7 +263,13 @@ class _TopUpPageState extends State<TopUpPage> {
                         ),
                       ),
                     ),
-                    _BalancePill(amount: balance),
+                    ValueListenableBuilder<User?>(
+                      valueListenable: Session.currentUser,
+                      builder: (context, user, child) {
+                        final display = user?.balance ?? 0.0;
+                        return _BalancePill(amount: display);
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -339,9 +356,7 @@ class _TopUpPageState extends State<TopUpPage> {
                             child: ElevatedButton(
                               onPressed: _loading ? null : _doTopup,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(
-                                  0xFF2E7D32,
-                                ), // เขียว
+                                backgroundColor: const Color(0xFF2E7D32),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -376,7 +391,7 @@ class _TopUpPageState extends State<TopUpPage> {
                                   ? null
                                   : () => Navigator.pop(context),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD32F2F), // แดง
+                                backgroundColor: const Color(0xFFD32F2F),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),

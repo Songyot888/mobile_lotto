@@ -8,7 +8,6 @@ import 'package:mobile_lotto/model/request/login_req.dart';
 import 'package:mobile_lotto/model/response/login_res_post.dart';
 import 'package:mobile_lotto/page/admin_page.dart';
 import 'package:mobile_lotto/page/menu_page.dart';
-import 'package:mobile_lotto/page/register_page.dart';
 
 class Login_Page extends StatefulWidget {
   const Login_Page({super.key});

@@ -109,7 +109,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
         setState(() {
           _user!.balance = withdrawRes.wallet.toDouble();
         });
-        await Session.saveUser(_user!);
+        await Session.saveUser(_user!); // trigger notifier ให้หน้าอื่นอัปเดต
         _showResultDialog(withdrawRes.message, success: true);
       } else {
         throw Exception('Withdraw failed: ${response.body}');

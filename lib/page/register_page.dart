@@ -5,7 +5,7 @@ import 'package:mobile_lotto/model/request/register_req.dart';
 import 'package:mobile_lotto/model/response/register_res_post.dart';
 
 class Register_Page extends StatefulWidget {
-  Register_Page({super.key});
+  const Register_Page({super.key});
 
   @override
   State<Register_Page> createState() => _Register_PageState();

@@ -28,6 +28,7 @@ class BuyLottoPage extends StatefulWidget {
 class _BuyLottoPageState extends State<BuyLottoPage> {
   User? _user;
   List<AllLotteryResGet> allLotteryresget = [];
+  VoidCallback? _userListener;
 
   // โหมดที่เลือก: 0=3ตัวหน้า, 1=3ตัวหลัง, 2=2ตัว
   int _mode = 0;
@@ -47,6 +48,13 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
     super.initState();
     _loadFromSession();
     _loadAllLotteries();
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {
+        _user = Session.currentUser.value;
+      });
+    };
+    Session.currentUser.addListener(_userListener!);
   }
 
   @override
@@ -144,11 +152,15 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
       if (response.statusCode == 200) {
         final data = BuyLotteryResPost.fromJson(json.decode(response.body));
 
+        // ✅ อัพเดตยอดเงินทันทีใน UI
         setState(() {
-          _walletOverride = data.wallet?.toDouble();
+          _walletOverride = data.wallet.toDouble();
           // ลบรายการที่ซื้อแล้วออกจากลิสต์
           allLotteryresget.removeWhere((x) => x.lid == lotteryId);
         });
+
+        // ✅ อัพเดต Session และ notify ทุก listeners
+        await Session.updateBalance(data.wallet.toDouble());
 
         // แสดงข้อความสำเร็จ
         await _showSuccessDialog(data);
@@ -289,7 +301,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final balance = _walletOverride ?? _user?.balance?.toDouble() ?? 0.0;
+    final balance = _walletOverride ?? _user?.balance.toDouble() ?? 0.0;
 
     return Scaffold(
       body: Container(
@@ -416,11 +428,11 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                 else
                   Column(
                     children: allLotteryresget.map((lottery) {
-                      final rawNumber = lottery.number?.toString() ?? "";
+                      final rawNumber = lottery.number.toString();
                       final shortNumber = shortByMode(rawNumber);
                       final modeName = _modes[_mode];
                       final lotteryId = lottery.lid;
-                      final displayPrice = lottery.price?.toString() ?? "100";
+                      final displayPrice = lottery.price.toString();
 
                       return _SuggestionCard(
                         rawNumber: rawNumber,
@@ -428,9 +440,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                         modeName: modeName,
                         isBusy: _buyingId == lotteryId,
                         priceText: "$displayPrice บาท",
-                        onBuy: lotteryId != null
-                            ? () => _buyLottery(lotteryId)
-                            : null,
+                        onBuy: () => _buyLottery(lotteryId),
                       );
                     }).toList(),
                   ),
@@ -445,6 +455,14 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
         routeNames: const ['/home', '/my-tickets', '/wallet', '/member'],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    if (_userListener != null) {
+      Session.currentUser.removeListener(_userListener!);
+    }
+    super.dispose();
   }
 }
 
