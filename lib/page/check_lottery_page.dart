@@ -22,20 +22,15 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
   bool _loadedOnce = false;
   VoidCallback? _userListener;
 
-  // State sets to manage the UI for each lottery ticket
-  final Set<int> _claimedOids = {}; // OIDs that have been successfully claimed.
-  final Set<int> _processingClaims =
-      {}; // OIDs currently being claimed to prevent double-taps.
-  final Set<int> _checkedOids =
-      {}; // OIDs that have been checked (win or lose).
-  final Set<int> _winnersNotClaimed =
-      {}; // OIDs that won but haven't been claimed yet.
+  final Set<int> _claimedOids = {};
+  final Set<int> _processingClaims = {};
+  final Set<int> _checkedOids = {};
+  final Set<int> _winnersNotClaimed = {};
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
-    // Listen to global user updates so the balance pill refreshes immediately.
     _userListener = () {
       if (!mounted) return;
       setState(() {
@@ -108,7 +103,6 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
     }
   }
 
-  // ---------- Check Prize + Show Result (Refactored) ----------
   Future<void> _onCheckPressed({
     required int oid,
     required int lid,
@@ -116,7 +110,6 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
   }) async {
     if (!mounted || _user?.uid == null) return;
 
-    // Set UI to "checking" state to prevent multiple checks.
     setState(() {
       _checkedOids.add(oid);
     });
@@ -134,18 +127,30 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
 
       if (!mounted) return;
 
-      // Handle non-successful responses
       if (response.statusCode != 200 || response.body.isEmpty) {
         throw Exception('Failed to get a valid response from the server.');
       }
 
-      // --- Parse the response ---
       final body = jsonDecode(response.body);
+
+      if (body is Map<String, dynamic> &&
+          body['message'] == 'ยังไม่มีการออกรางวัล') {
+        _showResultDialog(
+          isWinner: null,
+          number: number,
+          prize: 0,
+          onClaim: null,
+        );
+        setState(() {
+          _checkedOids.remove(oid);
+        });
+        return;
+      }
+
       bool isWin = false;
       int prize = 0;
 
       if (body is Map<String, dynamic>) {
-        // Handle JSON object response: {'isWin': bool, 'prize': num}
         final dynamicWin = body['isWin'] ?? body['win'] ?? body['isWinner'];
         if (dynamicWin is bool) {
           isWin = dynamicWin;
@@ -157,21 +162,14 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
           prize = dynamicPrize.round();
         }
 
-        // If 'isWin' is not explicitly provided, infer from the prize amount.
         if (dynamicWin == null) {
           isWin = prize > 0;
         }
       } else if (body is bool) {
-        // Handle boolean response: true/false
         isWin = body;
-      } else if (body is String && body.toLowerCase() == 'true') {
-        // Handle string response: "true"
-        isWin = true;
       }
 
-      // --- Show result dialog based on parsing ---
       if (isWin) {
-        // ✅ WINNER: Update state and show winner dialog.
         setState(() {
           _winnersNotClaimed.add(oid);
         });
@@ -182,40 +180,53 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
           onClaim: () => _claimPrize(oid, prize),
         );
       } else {
-        // ✖ NOT A WINNER: Show loser dialog. The ticket remains in _checkedOids.
         _showResultDialog(
           isWinner: false,
           number: number,
           prize: 0,
           onClaim: null,
         );
-        // รีเฟรชข้อมูลล็อตเตอรี่ใหม่เพื่อให้สถานะอัปเดต
-        _loadMylottory();
       }
     } catch (e, st) {
       log('Error checking lottery: $e\n$st');
       if (!mounted) return;
-
-      // If an error occurs, revert the state to allow the user to try again.
       setState(() {
         _checkedOids.remove(oid);
       });
-
-      // Show an error message to the user.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('เกิดข้อผิดพลาด กรุณาลองใหม่')),
       );
     }
   }
 
-  // ====== Dialogs (Forced centered dialogs using showGeneralDialog) ======
-
   void _showResultDialog({
-    required bool isWinner,
+    required bool? isWinner,
     required String number,
     required int prize,
     VoidCallback? onClaim,
   }) {
+    String title;
+    String message;
+    IconData icon;
+    Color iconColor;
+
+    if (isWinner == null) {
+      title = 'ยังไม่มีผลรางวัล';
+      message = 'กรุณาลองใหม่อีกครั้ง';
+      icon = Icons.hourglass_empty;
+      iconColor = Colors.orange;
+    } else if (isWinner) {
+      title = 'ยินดีด้วย!';
+      message = 'คุณถูกรางวัล ${_formatPrize(prize)} บาท';
+      icon = Icons.sentiment_satisfied_alt;
+      iconColor = Colors.green;
+    } else {
+      title = 'น่าเสียดาย!';
+      message = 'คุณไม่ถูกรางวัล';
+      icon = Icons.sentiment_dissatisfied;
+      iconColor = Colors.red;
+    }
+
     showGeneralDialog(
       context: context,
       useRootNavigator: true,
@@ -237,46 +248,38 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    isWinner
-                        ? Icons.sentiment_satisfied_alt
-                        : Icons.sentiment_dissatisfied,
-                    color: isWinner ? Colors.green : Colors.red,
-                    size: 64,
-                  ),
+                  Icon(icon, color: iconColor, size: 64),
                   const SizedBox(height: 12),
                   Text(
-                    isWinner ? 'ยินดีด้วย!' : 'น่าเสียดาย!',
+                    title,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    isWinner
-                        ? 'คุณถูกรางวัล ${_formatPrize(prize)} บาท'
-                        : 'คุณไม่ถูกรางวัล',
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3CD),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      number,
-                      style: const TextStyle(
-                        letterSpacing: 4,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                  Text(message),
+                  if (isWinner != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3CD),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        number,
+                        style: const TextStyle(
+                          letterSpacing: 4,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -294,7 +297,7 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
                           child: const Text('ปิด'),
                         ),
                       ),
-                      if (isWinner && onClaim != null) ...[
+                      if (isWinner == true && onClaim != null) ...[
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
@@ -382,12 +385,10 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
     );
   }
 
-  // ---------- Claim Prize ----------
   Future<void> _claimPrize(int oid, int prize) async {
     if (!mounted || _user?.uid == null) return;
     final memberId = _user!.uid;
 
-    // Prevent duplicate claim requests.
     if (_processingClaims.contains(oid)) {
       return;
     }
@@ -409,13 +410,11 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
       if (!mounted) return;
 
       if (claimRes.statusCode >= 200 && claimRes.statusCode < 300) {
-        // Update state to reflect successful claim.
         setState(() {
           _claimedOids.add(oid);
           _winnersNotClaimed.remove(oid);
         });
 
-        // Try to read the new balance from the response and update the session.
         try {
           final body = jsonDecode(claimRes.body);
           if (body is Map<String, dynamic>) {
@@ -425,15 +424,13 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
               await Session.updateBalance(walletDyn.toDouble());
             }
           }
-        } catch (_) {
-          // Ignore parsing errors for the balance update, as the claim was successful.
-        }
+        } catch (_) {}
 
-        _showClaimSuccessDialog(); // ✅ Show success dialog.
+        _showClaimSuccessDialog();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('ขึ้นรางวัลไปแล้ว'),
+            content: Text('ขึ้นรางวัลไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: Color(0xFFFF5722),
           ),
         );
@@ -526,10 +523,9 @@ class _CheckLotteryPageState extends State<CheckLotteryPage> {
                   children: mylotto
                       .map(
                         (n) => _CheckCard(
-                          // ส่ง status เข้าไปใน Card
-                          status: n.status,
                           number: n.number,
                           oid: n.oid,
+                          status: n.status,
                           isChecked: _checkedOids.contains(n.oid),
                           isClaimed: _claimedOids.contains(n.oid),
                           isProcessingClaim: _processingClaims.contains(n.oid),
@@ -605,7 +601,7 @@ class _BalancePill extends StatelessWidget {
 class _CheckCard extends StatelessWidget {
   final String number;
   final int oid;
-  final bool? status; // เพิ่ม status เข้ามา
+  final bool? status;
   final bool isChecked;
   final bool isClaimed;
   final bool isProcessingClaim;
@@ -615,7 +611,7 @@ class _CheckCard extends StatelessWidget {
   const _CheckCard({
     required this.number,
     required this.oid,
-    this.status, // เพิ่ม status ใน constructor
+    this.status,
     required this.isChecked,
     required this.isClaimed,
     required this.isProcessingClaim,
@@ -629,21 +625,17 @@ class _CheckCard extends StatelessWidget {
     Color buttonColor = const Color(0xFF2E7D32);
     bool isEnabled = true;
 
-    // *** เพิ่ม Logic ส่วนนี้ ***
-    // เช็คจาก status ที่มาจาก server ก่อน
-    if (status != null) {
-      buttonText = "ตรวจแล้ว";
-      buttonColor = Colors.blueGrey;
-      isEnabled = false;
-    }
-    // ถ้า status เป็น null ให้ใช้ logic เดิมจาก client-side state
-    else if (isClaimed) {
+    if (isClaimed) {
       buttonText = "ขึ้นเงินแล้ว";
       buttonColor = Colors.grey;
       isEnabled = false;
     } else if (isProcessingClaim) {
       buttonText = "กำลังขึ้นเงิน...";
       buttonColor = Colors.orange;
+      isEnabled = false;
+    } else if (status != null) {
+      buttonText = "ตรวจแล้ว";
+      buttonColor = Colors.blueGrey;
       isEnabled = false;
     } else if (isWinnerNotClaimed) {
       buttonText = "ถูกรางวัล";
