@@ -34,14 +34,10 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
   int _mode = 0;
   final List<String> _modes = ["3ตัวหน้า", "3ตัวหลัง", "2ตัว"];
 
-  // กันกดซ้ำ & อัปเดตยอดเงินโชว์ทันที
   int? _buyingId;
   double? _walletOverride;
 
-  // หา memberId จากโมเดล User
-  int? get _memberId {
-    return _user?.uid;
-  }
+  int? get _memberId => _user?.uid;
 
   @override
   void initState() {
@@ -115,11 +111,11 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
     if (s.isEmpty) return "-";
 
     switch (_mode) {
-      case 0: // 3 ตัวหน้า
+      case 0:
         return s.length >= 3 ? s.substring(0, 3) : s;
-      case 1: // 3 ตัวหลัง
+      case 1:
         return s.length >= 3 ? s.substring(s.length - 3) : s;
-      default: // 2 ตัวท้าย
+      default:
         return s.length >= 2 ? s.substring(s.length - 2) : s;
     }
   }
@@ -152,20 +148,15 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
       if (response.statusCode == 200) {
         final data = BuyLotteryResPost.fromJson(json.decode(response.body));
 
-        // ✅ อัพเดตยอดเงินทันทีใน UI
         setState(() {
           _walletOverride = data.wallet.toDouble();
-          // ลบรายการที่ซื้อแล้วออกจากลิสต์
           allLotteryresget.removeWhere((x) => x.lid == lotteryId);
         });
 
-        // ✅ อัพเดต Session และ notify ทุก listeners
         await Session.updateBalance(data.wallet.toDouble());
 
-        // แสดงข้อความสำเร็จ
         await _showSuccessDialog(data);
       } else {
-        // จัดการข้อผิดพลาดตาม HTTP status
         String errorMessage = await _parseErrorMessage(response);
         _showErrorSnackBar(errorMessage);
       }
@@ -275,7 +266,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
     );
   }
 
-  // ปุ่มโหมด
   Widget _buildModePill(String label, int index) {
     final isActive = _mode == index;
     return InkWell(
@@ -347,7 +337,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                 ),
 
                 const SizedBox(height: 18),
-
                 const Text(
                   "ค้นหาเลขเด็ด\nงวดวันที่ 13 มิ.ย 2565",
                   style: TextStyle(
@@ -369,7 +358,7 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
 
                 const SizedBox(height: 12),
 
-                // ปุ่มค้นหาเลข
+                // ✅ ปุ่มค้นหาเลข
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -406,15 +395,12 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // จำนวนทั้งหมด
                 Text(
                   "พบทั้งหมด ${allLotteryresget.length} รายการ",
                   style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 12),
 
-                // การ์ดเลขแนะนำ
                 if (allLotteryresget.isEmpty)
                   const Center(
                     child: Padding(
@@ -449,7 +435,6 @@ class _BuyLottoPageState extends State<BuyLottoPage> {
           ),
         ),
       ),
-
       bottomNavigationBar: BottomNav(
         currentIndex: 1,
         routeNames: const ['/home', '/my-tickets', '/wallet', '/member'],
@@ -530,21 +515,18 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // เลขเต็ม + ป้ายโหมดเล็ก
           Expanded(
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFE082),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFE082),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
                     child: Text(
                       rawNumber.isEmpty ? "------" : rawNumber,
                       style: const TextStyle(
@@ -555,37 +537,13 @@ class _SuggestionCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00C4BA),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "$modeName: $shortNumber",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  _ModeBadge(text: "$modeName: $shortNumber"),
+                ],
+              ),
             ),
           ),
-
           const SizedBox(width: 12),
-
-          // ปุ่มซื้อ
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -625,6 +583,31 @@ class _SuggestionCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ModeBadge extends StatelessWidget {
+  final String text;
+  const _ModeBadge({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00C4BA),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          height: 1.0,
+        ),
       ),
     );
   }

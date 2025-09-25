@@ -280,7 +280,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   String _formatShort(DateTime? dt) {
-    if (dt == null) return '—';
+    if (dt == null) return '';
     final d = dt.toLocal();
     two(int x) => x.toString().padLeft(2, '0');
     final yy = (d.year % 100).toString().padLeft(2, '0');

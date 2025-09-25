@@ -222,8 +222,7 @@ class _EditprofilePageState extends State<EditprofilePage> {
                               icon: Icons.alternate_email,
                               validator: _email,
                               keyboardType: TextInputType.emailAddress,
-                              readOnly:
-                                  true, // ถ้าอยากให้แก้ได้ก็เปลี่ยนเป็น false
+                              readOnly: false,
                               textInputAction: TextInputAction.next,
                             ),
                             _field(
