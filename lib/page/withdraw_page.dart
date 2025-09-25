@@ -29,12 +29,13 @@ class _WithdrawPageState extends State<WithdrawPage> {
   @override
   void initState() {
     super.initState();
-    // เติมค่าจาก user ถ้ามี
-    final acc = widget.user?.bankNumber ?? 'xxx-xxx-020';
-    final bank = widget.user?.bankName ?? 'ธนาคาร กรุงโรม';
+    // 1) ถ้ามี user ที่ส่งมากับหน้า ให้ใช้ก่อน
+    if (widget.user != null) {
+      _user = widget.user;
+      _applyUserToControllers(widget.user!);
+    }
+    // 2) จากนั้นพยายามโหลด user ล่าสุดจาก Session
     _loadFromSession();
-    _accCtrl.text = acc;
-    _bankCtrl.text = bank;
   }
 
   @override
@@ -48,27 +49,47 @@ class _WithdrawPageState extends State<WithdrawPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // 3) ถ้ามี args จาก Route ให้อัปเดต
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is User) {
       _user = args;
+      _applyUserToControllers(args);
+      setState(() {}); // ให้ UI รีเฟรชยอด/ป้ายต่างๆ
     }
-    setState(() {});
   }
 
   Future<void> _loadFromSession() async {
-    final u = await Session.getUser();
-    if (!mounted) return;
-    if (u != null) {
-      setState(() {
-        _user = u;
-      });
-    } else {
-      setState(() {});
+    try {
+      final u = await Session.getUser();
+      if (!mounted) return;
+      if (u != null) {
+        setState(() {
+          _user = u;
+          _applyUserToControllers(u);
+        });
+      }
+    } catch (e) {
+      log("loadFromSession error: $e");
     }
+  }
+
+  // เอาค่าจาก User มาใส่ในฟิลด์: โชว์จริง ไม่ใช้ placeholder
+  void _applyUserToControllers(User u) {
+    _accCtrl.text = u.bankNumber?.trim().isNotEmpty == true
+        ? u.bankNumber!
+        //ถ้าไม่มีเลขบัญชี ให้แสดงค่าว่าง
+        : '';
+    _bankCtrl.text = u.bankName?.trim().isNotEmpty == true ? u.bankName! : '';
   }
 
   Future<void> _doWithdraw() async {
     if (_loading) return;
+
+    // ต้องมีผู้ใช้ก่อน
+    if (_user == null) {
+      _showResultDialog('ไม่พบข้อมูลผู้ใช้', success: false);
+      return;
+    }
 
     final amountText = _amountCtrl.text.trim();
     final amount = double.tryParse(amountText.replaceAll(',', ''));
@@ -81,17 +102,12 @@ class _WithdrawPageState extends State<WithdrawPage> {
       _showResultDialog('ยอดเงินไม่พอสำหรับการถอน', success: false);
       return;
     }
-    if (_user == null) {
-      _showResultDialog('ไม่พบข้อมูลผู้ใช้', success: false);
-      return;
-    }
 
     setState(() => _loading = true);
 
     try {
       final req = WithdrawReq(memberId: _user!.uid, money: amount.toInt());
-      log(_user!.uid.toString());
-      log(amount.toInt().toString());
+      log('withdraw memberId=${_user!.uid}, amount=${amount.toInt()}');
 
       final response = await http.post(
         Uri.parse(
@@ -105,11 +121,12 @@ class _WithdrawPageState extends State<WithdrawPage> {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final withdrawRes = withdrawResPostFromJson(jsonEncode(data));
 
-        // อัปเดตยอดใหม่
+        // อัปเดตยอดใหม่บนโมเดลและบันทึก Session
         setState(() {
           _user!.balance = withdrawRes.wallet.toDouble();
         });
-        await Session.saveUser(_user!); // trigger notifier ให้หน้าอื่นอัปเดต
+        await Session.saveUser(_user!);
+
         _showResultDialog(withdrawRes.message, success: true);
       } else {
         throw Exception('Withdraw failed: ${response.body}');
@@ -121,7 +138,6 @@ class _WithdrawPageState extends State<WithdrawPage> {
     }
   }
 
-  // Dialog แจ้งผล (สไตล์เดียวกับหน้าอื่น ๆ)
   void _showResultDialog(String msg, {bool success = true}) {
     showDialog(
       context: context,
@@ -165,7 +181,6 @@ class _WithdrawPageState extends State<WithdrawPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ พื้นหลังเต็มจอ
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -183,7 +198,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Back + Title + Balance
+                // Header
                 Row(
                   children: [
                     IconButton(
@@ -207,10 +222,9 @@ class _WithdrawPageState extends State<WithdrawPage> {
                     _BalancePill(amount: _user?.balance ?? 0),
                   ],
                 ),
-
                 const SizedBox(height: 10),
 
-                // การ์ดกลาง
+                // การ์ด
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -224,20 +238,25 @@ class _WithdrawPageState extends State<WithdrawPage> {
                   ),
                   child: Column(
                     children: [
+                      // เลขบัญชี (จาก User จริง)
                       _CapsuleField(
                         controller: _accCtrl,
                         hint: 'เลขบัญชี',
-                        enabled: false, // ตามดีไซน์เป็นข้อมูลแสดงผล
+                        enabled: false, // แสดงผลอย่างเดียว
                         prefixIcon: Icons.credit_card,
                       ),
                       const SizedBox(height: 10),
+
+                      // ชื่อธนาคาร (จาก User จริง)
                       _CapsuleField(
                         controller: _bankCtrl,
                         hint: 'ธนาคาร',
-                        enabled: false,
+                        enabled: false, // แสดงผลอย่างเดียว
                         prefixIcon: Icons.account_balance,
                       ),
                       const SizedBox(height: 10),
+
+                      // จำนวนที่ต้องการถอน (พิมพ์ได้)
                       _CapsuleField(
                         controller: _amountCtrl,
                         hint: 'กรอกจำนวนที่ต้องการถอน',
@@ -253,9 +272,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
                             child: ElevatedButton(
                               onPressed: _loading ? null : _doWithdraw,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(
-                                  0xFF2E7D32,
-                                ), // เขียว
+                                backgroundColor: const Color(0xFF2E7D32),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -290,7 +307,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
                                   ? null
                                   : () => Navigator.pop(context),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD32F2F), // แดง
+                                backgroundColor: const Color(0xFFD32F2F),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -319,8 +336,6 @@ class _WithdrawPageState extends State<WithdrawPage> {
           ),
         ),
       ),
-
-      // BottomNav: ไฮไลต์ "กระเป๋าเงิน"
       bottomNavigationBar: BottomNav(
         currentIndex: 2,
         routeNames: const ['/home', '/buy', '/wallet', '/member'],
